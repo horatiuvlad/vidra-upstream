@@ -33,6 +33,16 @@
 
   <ItemGroup>
     <CompilerVisibleProperty Include="VidraContractScope" />
+    <EmbeddedResource
+      Include="$(MSBuildProjectDirectory)/Resources/Raw/vidra-bridge-policy.json"
+      LogicalName="Vidra.Bridge.Policy"
+      Visible="false"
+      Condition="Exists('$(MSBuildProjectDirectory)/Resources/Raw/vidra-bridge-policy.json')" />
+    <!-- Non-code policy changes require a rebuild and process restart: the
+         running dispatcher owns an immutable snapshot of this resource. -->
+    <Watch
+      Include="$(MSBuildProjectDirectory)/Resources/Raw/vidra-bridge-policy.json"
+      Condition="Exists('$(MSBuildProjectDirectory)/Resources/Raw/vidra-bridge-policy.json')" />
   </ItemGroup>
 
   <!--

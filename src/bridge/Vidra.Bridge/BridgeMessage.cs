@@ -111,12 +111,18 @@ public sealed class BridgeHandshake
 
     [JsonPropertyName("appFingerprint")]
     public required string AppFingerprint { get; init; }
+
+    [JsonPropertyName("accessFingerprint")]
+    public required string AccessFingerprint { get; init; }
 }
 
 public sealed class BridgeCapabilities
 {
     [JsonPropertyName("protocolVersion")]
     public required int ProtocolVersion { get; init; }
+
+    [JsonPropertyName("accessFingerprint")]
+    public required string AccessFingerprint { get; init; }
 
     [JsonPropertyName("nativeContracts")]
     public Dictionary<string, NativeContractCapabilities> NativeContracts { get; init; } = new();

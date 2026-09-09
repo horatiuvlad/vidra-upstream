@@ -6,7 +6,7 @@
 //                               [--feed <url>] [--main-page <file.cs.in>]
 //
 // There is one step, because there is one switch: a native feed URL in
-// package.json. The package reference, the builder call and the `VelopackApp`
+// vidra.config.ts. The package reference, the builder call and the `VelopackApp`
 // line in both entry points all ship live in the template, so this script has
 // nothing left to patch into the app's own source.
 //
@@ -25,16 +25,21 @@ const version = required("version");
 const feedUrl = args.feed ?? "http://127.0.0.1:8098/";
 const hostDir = path.join(projectDir, "src", `${name}.Host`);
 
-// The one switch, plus the version this release carries.
+// The version this release carries.
 edit(path.join(projectDir, "package.json"), (json) => {
   const pkg = JSON.parse(json);
   pkg.version = version;
-  pkg.vidra ??= {};
-  // `feed.app` rather than a bare feed string: this rig tests whole-app updates,
-  // and one string would turn the web tier on too.
-  pkg.vidra.updates = { ...(pkg.vidra.updates ?? {}), feed: { app: feedUrl } };
   return `${JSON.stringify(pkg, null, 2)}\n`;
 });
+
+// `feed.app` rather than a bare feed string: this rig tests whole-app updates,
+// and one string would turn the web tier on too.
+edit(path.join(projectDir, "vidra.config.ts"), (source) =>
+  source.replace(
+    'updates: {\n    feed: "",\n  }',
+    `updates: {\n    feed: { app: ${JSON.stringify(feedUrl)} },\n  }`,
+  ),
+);
 
 // The app has to already carry the updater, or a feed URL alone would not be
 // enough and this whole design would be a lie. Asserted rather than assumed: if

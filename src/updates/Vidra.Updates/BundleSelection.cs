@@ -7,6 +7,7 @@ public enum BundleRejection
     WrongChannel,
     IncompatibleCoreContract,
     IncompatibleAppContract,
+    IncompatibleAccessPolicy,
     UnreadableVersion,
     NotNewer,
     PreviouslyFailed,
@@ -35,7 +36,8 @@ public static class BundleSelection
         string hostAppFingerprint,
         string? currentVersion,
         string? channel = null,
-        IReadOnlyCollection<string>? blocked = null)
+        IReadOnlyCollection<string>? blocked = null,
+        string? hostAccessFingerprint = null)
     {
         ArgumentNullException.ThrowIfNull(manifest);
 
@@ -53,6 +55,7 @@ public static class BundleSelection
                 haveInstalled ? installed : null,
                 channel,
                 blocked,
+                hostAccessFingerprint,
                 out var entryVersion);
 
             if (rejection != BundleRejection.None)
@@ -79,7 +82,8 @@ public static class BundleSelection
         string hostAppFingerprint,
         string? currentVersion,
         string? channel = null,
-        IReadOnlyCollection<string>? blocked = null)
+        IReadOnlyCollection<string>? blocked = null,
+        string? hostAccessFingerprint = null)
     {
         ArgumentNullException.ThrowIfNull(manifest);
 
@@ -95,6 +99,7 @@ public static class BundleSelection
                     haveInstalled ? installed : null,
                     channel,
                     blocked,
+                    hostAccessFingerprint,
                     out _)))
             .ToArray();
     }
@@ -106,6 +111,7 @@ public static class BundleSelection
         BundleVersion? installed,
         string? channel,
         IReadOnlyCollection<string>? blocked,
+        string? hostAccessFingerprint,
         out BundleVersion version)
     {
         version = default;
@@ -122,6 +128,12 @@ public static class BundleSelection
 
         if (!string.Equals(entry.AppFingerprint, hostAppFingerprint, StringComparison.OrdinalIgnoreCase))
             return BundleRejection.IncompatibleAppContract;
+
+        if (hostAccessFingerprint is not null
+            && !string.Equals(entry.AccessFingerprint, hostAccessFingerprint, StringComparison.OrdinalIgnoreCase))
+        {
+            return BundleRejection.IncompatibleAccessPolicy;
+        }
 
         if (blocked is not null && blocked.Contains(entry.Sha256, StringComparer.OrdinalIgnoreCase))
             return BundleRejection.PreviouslyFailed;

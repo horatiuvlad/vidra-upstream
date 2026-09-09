@@ -10,3 +10,4 @@ export const sample = new SampleProxy(vidra);
 
 export * from "./dialog.js";
 export * from "./sample.js";
+export { native, events } from "./access.js";

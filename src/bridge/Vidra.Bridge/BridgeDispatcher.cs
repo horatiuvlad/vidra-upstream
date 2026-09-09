@@ -10,6 +10,14 @@ public sealed class BridgeDispatcher
 {
     private readonly Dictionary<string, IBridgeModule> _modules = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, HashSet<string>> _events = new(StringComparer.OrdinalIgnoreCase);
+    private readonly IBridgeAccessPolicy _accessPolicy;
+
+    public BridgeDispatcher(IBridgeAccessPolicy? accessPolicy = null)
+    {
+        _accessPolicy = accessPolicy ?? BridgeAccessPolicy.DenyAll;
+    }
+
+    public IBridgeAccessPolicy AccessPolicy => _accessPolicy;
 
     public void Register(IBridgeModule module)
     {
@@ -44,22 +52,63 @@ public sealed class BridgeDispatcher
 
         foreach (var contract in contractNames.OrderBy(name => name, StringComparer.Ordinal))
         {
-            contracts[contract] = new NativeContractCapabilities
+            var methods = _modules.TryGetValue(contract, out var module)
+                ? module.SupportedMethods
+                    .Where(member => _accessPolicy.AllowsNativeMethod(contract, member))
+                    .OrderBy(name => name, StringComparer.Ordinal)
+                    .ToArray()
+                : [];
+            var contractEvents = _events.TryGetValue(contract, out var events)
+                ? events
+                    .Where(member => _accessPolicy.AllowsEvent(contract, member))
+                    .OrderBy(name => name, StringComparer.Ordinal)
+                    .ToArray()
+                : [];
+            if (methods.Length > 0 || contractEvents.Length > 0)
             {
-                Methods = _modules.TryGetValue(contract, out var module)
-                    ? module.SupportedMethods.OrderBy(name => name, StringComparer.Ordinal).ToArray()
-                    : Array.Empty<string>(),
-                Events = _events.TryGetValue(contract, out var events)
-                    ? events.OrderBy(name => name, StringComparer.Ordinal).ToArray()
-                    : Array.Empty<string>(),
-            };
+                contracts[contract] = new NativeContractCapabilities
+                {
+                    Methods = methods,
+                    Events = contractEvents,
+                };
+            }
         }
 
         return new BridgeCapabilities
         {
             ProtocolVersion = BridgeProtocol.Version,
+            AccessFingerprint = _accessPolicy.Fingerprint,
             NativeContracts = contracts,
         };
+    }
+
+    /// <summary>
+    /// Fails host startup when a compiled grant no longer names a registered
+    /// module member. A stale permission must not look like a working policy.
+    /// </summary>
+    public void ValidateAccessPolicy()
+    {
+        var native = _accessPolicy.Document.NativeMethods
+            .Concat(_accessPolicy.Document.FileSystem.SelectMany(grant => grant.Methods));
+        foreach (var grant in native)
+        {
+            if (!_modules.TryGetValue(grant.Contract, out var module)
+                || !module.SupportedMethods.Contains(grant.Member, StringComparer.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    $"Bridge access policy grants unknown native method '{grant.Contract}.{grant.Member}'.");
+            }
+        }
+
+        foreach (var grant in _accessPolicy.Document.Events)
+        {
+            if (!_events.TryGetValue(grant.Contract, out var members)
+                || !members.Contains(grant.Member))
+            {
+                throw new InvalidOperationException(
+                    $"Bridge access policy grants unknown event '{grant.Contract}.{grant.Member}'.");
+            }
+        }
     }
 
     /// <summary>
@@ -102,6 +151,34 @@ public sealed class BridgeDispatcher
             });
         }
 
+        if (request.Contract == "__bridge")
+        {
+            return BridgeSerializer.Serialize(new BridgeResponse
+            {
+                Id = request.Id,
+                Success = false,
+                Error = new BridgeError
+                {
+                    Code = "BRIDGE_META_NOT_FOUND",
+                    Message = $"No bridge meta member '{request.Member}' exists.",
+                },
+            });
+        }
+
+        if (!_accessPolicy.AllowsNativeMethod(request.Contract, request.Member))
+        {
+            return BridgeSerializer.Serialize(new BridgeResponse
+            {
+                Id = request.Id,
+                Success = false,
+                Error = new BridgeError
+                {
+                    Code = "NATIVE_ACCESS_DENIED",
+                    Message = $"Native access to '{request.Contract}.{request.Member}' is not granted.",
+                },
+            });
+        }
+
         if (!_modules.TryGetValue(request.Contract, out var module))
         {
             return BridgeSerializer.Serialize(new BridgeResponse
@@ -126,6 +203,15 @@ public sealed class BridgeDispatcher
                 Id = request.Id,
                 Success = true,
                 Data = result,
+            });
+        }
+        catch (BridgeInvocationException ex)
+        {
+            return BridgeSerializer.Serialize(new BridgeResponse
+            {
+                Id = request.Id,
+                Success = false,
+                Error = new BridgeError { Code = ex.Code, Message = ex.Message },
             });
         }
         catch (Exception ex)

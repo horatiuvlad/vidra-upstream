@@ -40,7 +40,22 @@ public sealed class AppWindowBridgeTests
 
     public AppWindowBridgeTests()
     {
-        _dispatcher = new BridgeDispatcher();
+        _dispatcher = new BridgeDispatcher(new BridgeAccessPolicy(new BridgePolicyDocument
+        {
+            NativeMethods =
+            [
+                new("appWindow", "getSupport"),
+                new("appWindow", "getCurrent"),
+                new("appWindow", "configure"),
+                new("appWindow", "setTitle"),
+                new("appWindow", "setSize"),
+                new("appWindow", "center"),
+                new("appWindow", "maximize"),
+                new("appWindow", "minimize"),
+                new("appWindow", "restore"),
+                new("appWindow", "setFullscreen"),
+            ],
+        }));
         _dispatcher.Register(new TestAppWindowModule(_service));
     }
 

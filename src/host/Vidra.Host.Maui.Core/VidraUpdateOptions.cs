@@ -9,8 +9,8 @@ namespace Vidra.Hosting;
 /// Settings arrive from three places, most specific first: what
 /// <c>UseVidraUpdates(...)</c> sets in code, the <c>VIDRA_UPDATE_FEED_URL</c>
 /// environment variable, and <c>vidra-updates.json</c> — which <c>vidra build</c>
-/// writes from the <c>vidra.updates</c> block of the app's own
-/// <c>package.json</c>, so the usual case needs no C# at all.
+/// writes from the <c>updates</c> block in <c>vidra.config.ts</c>, so the usual
+/// case needs no C# at all.
 /// </remarks>
 public sealed class VidraUpdateOptions
 {

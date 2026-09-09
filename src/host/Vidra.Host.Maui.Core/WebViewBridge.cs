@@ -1,4 +1,6 @@
+using System.Collections.Concurrent;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using Vidra.Bridge;
 
 namespace Vidra.Hosting;
@@ -20,12 +22,18 @@ public sealed partial class WebViewBridge : IJsCallbackChannel, IUnsafeJsCallbac
 
     private readonly BridgeDispatcher _dispatcher;
     private readonly VidraBridgeOptions _options;
+    private readonly ILogger<WebViewBridge> _logger;
+    private readonly ConcurrentDictionary<string, byte> _reportedDeniedEvents = new();
     private readonly PendingJsCallRegistry _pendingJsCalls = new();
     private WebView? _webView;
 
-    public WebViewBridge(BridgeDispatcher dispatcher, VidraBridgeOptions? options = null)
+    public WebViewBridge(
+        BridgeDispatcher dispatcher,
+        ILogger<WebViewBridge> logger,
+        VidraBridgeOptions? options = null)
     {
         _dispatcher = dispatcher;
+        _logger = logger;
         _options = options ?? new VidraBridgeOptions();
     }
 
@@ -151,6 +159,7 @@ public sealed partial class WebViewBridge : IJsCallbackChannel, IUnsafeJsCallbac
                 ProtocolVersion = BridgeProtocol.Version,
                 CoreFingerprint = BridgeContractRegistry.Fingerprint(BridgeManifestScope.Core),
                 AppFingerprint = BridgeContractRegistry.Fingerprint(BridgeManifestScope.App),
+                AccessFingerprint = _dispatcher.AccessPolicy.Fingerprint,
             };
 
             // Protocol mismatch handling renders its diagnostic before throwing
@@ -262,6 +271,18 @@ public sealed partial class WebViewBridge : IJsCallbackChannel, IUnsafeJsCallbac
         CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
+        if (!_dispatcher.AccessPolicy.AllowsEvent(contract, member))
+        {
+            if (_reportedDeniedEvents.TryAdd($"{contract}\0{member}", 0))
+            {
+                _logger.LogInformation(
+                    "Dropped ungranted bridge event {Contract}.{Member}.",
+                    contract,
+                    member);
+            }
+            return;
+        }
+
         var bridgeEvent = new BridgeEvent
         {
             Contract = contract,

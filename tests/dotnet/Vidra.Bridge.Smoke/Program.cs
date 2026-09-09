@@ -16,7 +16,10 @@ public static class Program
 {
     public static async Task<int> Main()
     {
-        var dispatcher = new BridgeDispatcher();
+        var dispatcher = new BridgeDispatcher(new BridgeAccessPolicy(new BridgePolicyDocument
+        {
+            NativeMethods = [new("echo", "ping")],
+        }));
         dispatcher.Register(new EchoSmokeModule());
 
         Console.OutputEncoding = System.Text.Encoding.UTF8;

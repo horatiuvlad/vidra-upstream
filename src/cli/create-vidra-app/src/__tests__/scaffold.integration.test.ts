@@ -7,7 +7,6 @@ import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { scaffoldDir, type Replacements } from "../scaffold.js";
 import { toPascalCase, toKebabCase, toTitleCase } from "../utils.js";
-import { readUpdateBlockState, readUpdateConfig, resolveFeeds } from "../update-config.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_ROOT = path.resolve(__dirname, "../..");
@@ -54,6 +53,7 @@ describe("scaffold integration", () => {
   it("creates the expected top-level directory tree", async () => {
     const expected = [
       "package.json",
+      "vidra.config.ts",
       "README.md",
       path.join("ui", "package.json"),
       path.join("ui", "vite.config.ts"),
@@ -62,6 +62,7 @@ describe("scaffold integration", () => {
       path.join("ui", "src", "generated", "counter.ts"),
       path.join("ui", "src", "generated", "index.ts"),
       path.join("ui", "src", "generated", "manifest.json"),
+      path.join("ui", "src", "generated", "vidra-access-policy.ts"),
       path.join("ui", "index.html"),
       path.join("src", `${projectName}.Host`, `${projectName}.Host.csproj`),
       path.join("src", `${projectName}.Host`, "MauiProgram.cs"),
@@ -138,7 +139,7 @@ describe("scaffold integration", () => {
 
   /**
    * The updater ships live in every scaffolded app, doing nothing until
-   * `package.json` names a feed. That is what makes a feed URL the only switch
+   * `vidra.config.ts` names a feed. That is what makes a feed URL the only switch
    * — so if any of these four ever regress to being commented out, an app that
    * configures a feed goes quietly back to never updating, and nothing else in
    * the suite would notice.
@@ -167,20 +168,18 @@ describe("scaffold integration", () => {
     );
 
     /**
-     * The switches are in package.json from the first scaffold, spelled
+     * The switches are in vidra.config.ts from the first scaffold, spelled
      * correctly and empty. Filling one in is the entire opt-in, and there is
      * no key left to misspell.
      */
     it("ships the switch, blank", async () => {
-      const pkg = await fs.readJson(path.join(root, "package.json"));
-      expect(pkg.vidra.updates).toEqual({ feed: "" });
+      const config = await fs.readFile(path.join(root, "vidra.config.ts"), "utf8");
+      expect(config).toContain('feed: ""');
     });
 
-    it("reads as off, and as a block nobody has touched", async () => {
-      const feeds = resolveFeeds(readUpdateConfig(root));
-      expect(feeds.web).toBeNull();
-      expect(feeds.app).toBeNull();
-      expect(readUpdateBlockState(root)).toBe("untouched");
+    it("keeps update settings out of package.json", async () => {
+      const pkg = await fs.readJson(path.join(root, "package.json"));
+      expect(pkg.vidra).toBeUndefined();
     });
   });
 

@@ -210,7 +210,6 @@ describe("newestPackVersion", () => {
  * only place a typo can surface.
  */
 describe("diagnoseUpdateConfiguration", () => {
-  const EDITED = "edited" as const;
   const WIRED = "builder.UseVidra().UseVidraUpdates().UseVidraNativeUpdates();";
   const ENTRY_POINTS = {
     MacCatalyst: "VelopackApp.Build().UseVidraLocator().Run();",
@@ -219,7 +218,6 @@ describe("diagnoseUpdateConfiguration", () => {
 
   const clean = {
     config: null as Parameters<typeof diagnoseUpdateConfiguration>[0]["config"],
-    blockState: "absent" as const,
     mauiProgram: WIRED,
     csproj: '<PackageReference Include="Vidra.Updates.Native" Version="0.5.0" />',
     entryPoints: ENTRY_POINTS,
@@ -233,33 +231,15 @@ describe("diagnoseUpdateConfiguration", () => {
     expect(diagnoseUpdateConfiguration(clean)).toEqual([]);
   });
 
-  /**
-   * Every scaffolded app ships the block, blank. Its presence is not a signal,
-   * and reporting it would fire on every fresh app.
-   */
-  it("says nothing about the blank block a fresh scaffold ships", () => {
-    expect(diagnoseUpdateConfiguration({ ...clean, blockState: "untouched" })).toEqual([]);
-  });
-
   it("says nothing about a scaffolded app with a feed", () => {
     expect(
-      diagnoseUpdateConfiguration({ ...clean, blockState: EDITED, config: { feed: "https://cdn/notes/" } }),
+      diagnoseUpdateConfiguration({ ...clean, config: { feed: "https://cdn/notes/" } }),
     ).toEqual([]);
-  });
-
-  /**
-   * The mistake nothing else can catch. A misspelled `feedUrl` produces a
-   * `vidra.updates` block that reads, stamps, ships — and turns nothing on,
-   * which is indistinguishable at runtime from an app that wants no updates.
-   */
-  it("catches a block that turns nothing on", () => {
-    expect(names({ ...clean, blockState: EDITED, config: null })).toEqual(["Update feed"]);
   });
 
   it("says so plainly when a feed is switched off rather than missing", () => {
     const [found] = diagnoseUpdateConfiguration({
       ...clean,
-      blockState: EDITED,
       config: { feed: "https://cdn/notes/", enabled: false },
     });
 
@@ -271,7 +251,6 @@ describe("diagnoseUpdateConfiguration", () => {
   it("catches a feed it cannot resolve", () => {
     const [found] = diagnoseUpdateConfiguration({
       ...clean,
-      blockState: EDITED,
       config: { feed: "s3://notes-updates/app/" },
     });
 
@@ -284,7 +263,6 @@ describe("diagnoseUpdateConfiguration", () => {
     expect(
       diagnoseUpdateConfiguration({
         ...clean,
-        blockState: EDITED,
         config: { feed: { web: "https://cdn/notes/" } },
       }),
     ).toEqual([]);
@@ -299,7 +277,6 @@ describe("diagnoseUpdateConfiguration", () => {
     expect(
       names({
         ...clean,
-        blockState: EDITED,
         config: { feed: { web: "https://cdn/notes/" } },
         mauiProgram: "builder.UseVidra();",
       }),
@@ -310,7 +287,6 @@ describe("diagnoseUpdateConfiguration", () => {
     expect(
       names({
         ...clean,
-        blockState: EDITED,
         config: { feed: "https://cdn/notes/" },
         mauiProgram: "builder.UseVidra().UseVidraUpdates();",
         csproj: '<PackageReference Include="Vidra.Hosting.Maui" Version="0.4.0" />',
@@ -331,7 +307,6 @@ describe("diagnoseUpdateConfiguration", () => {
     expect(
       names({
         ...clean,
-        blockState: EDITED,
         config: { feed: "https://cdn/notes/" },
         entryPoints: { MacCatalyst: "// VelopackApp.Build().UseVidraLocator().Run();" },
       }),
@@ -347,7 +322,6 @@ describe("diagnoseUpdateConfiguration", () => {
     expect(
       names({
         ...clean,
-        blockState: EDITED,
         config: { feed: "https://cdn/notes/", publicKeys: ["k"] },
         publishedUnsigned: true,
       }),
@@ -358,7 +332,6 @@ describe("diagnoseUpdateConfiguration", () => {
     expect(
       diagnoseUpdateConfiguration({
         ...clean,
-        blockState: EDITED,
         config: { feed: "https://cdn/notes/" },
         publishedUnsigned: true,
       }),
@@ -380,7 +353,6 @@ describe("diagnoseUpdateConfiguration", () => {
     expect(
       names({
         ...clean,
-        blockState: EDITED,
         config: { feed: { web: "https://cdn/notes/" } },
         mauiProgram: template,
       }),
@@ -396,7 +368,6 @@ describe("diagnoseUpdateConfiguration", () => {
     expect(
       names({
         ...clean,
-        blockState: EDITED,
         config: { feed: "https://cdn/notes/" },
         mauiProgram: null,
         csproj: null,

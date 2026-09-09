@@ -106,4 +106,16 @@ public sealed class TypeScriptEmitterTests
         var output = emitter.EmitContract("sample", manifest.Contracts["sample"], "../sdk/index.js");
         output.Should().Contain("from \"../sdk/index.js\"");
     }
+
+    [Fact]
+    public void EmitAccessCatalog_Exposes_Native_Methods_And_Events_As_Tokens()
+    {
+        var manifest = ScanFixture();
+        var output = new TypeScriptEmitter().EmitAccessCatalog(manifest);
+
+        output.Should().Contain("sample: {");
+        output.Should().Contain("echo: nativeMethodToken(\"sample\", \"echo\")");
+        output.Should().Contain("changed: eventToken(\"sample\", \"changed\")");
+        output.Should().Contain("from \"@vidra-dev/sdk/config/tokens\"");
+    }
 }

@@ -12,6 +12,7 @@ public sealed class UpdateClientTests : IDisposable
 {
     private const string Core = "a4d6e4856749f06fd3c84be9bb5a468c5219e71797777a977a2d0772dc6214db";
     private const string App = "d3044812d17c42049962d730fced04a6ecd711e287cdd0da7b218b327ee6cd56";
+    private const string Access = "3ac090de6154b840ef518755f7cf4e16b5860c26805d60cb878574b086947387";
 
     private readonly string _work = Directory.CreateTempSubdirectory("vidra-client-").FullName;
 
@@ -95,7 +96,7 @@ public sealed class UpdateClientTests : IDisposable
     {
         var feed = PublishFeed(("1.1.0", Core, App));
         var manifestPath = Path.Combine(feed, "bundles.json");
-        File.WriteAllText(manifestPath, File.ReadAllText(manifestPath).Replace("\"schema\": 1", "\"schema\": 2"));
+        File.WriteAllText(manifestPath, File.ReadAllText(manifestPath).Replace("\"schema\": 2", "\"schema\": 3"));
 
         var result = await new UpdateClient(Store()).CheckAsync(new FileBundleSource(feed), Request());
 
@@ -142,10 +143,11 @@ public sealed class UpdateClientTests : IDisposable
         // The same archive, republished a version later.
         File.WriteAllText(
             Path.Combine(feed, "bundles.json"),
-            "{\n  \"schema\": 1,\n  \"bundles\": [\n"
+            "{\n  \"schema\": 2,\n  \"bundles\": [\n"
             + "    { \"version\": \"1.2.0\", \"url\": \"" + entry.Url + "\""
             + ", \"sha256\": \"" + entry.Sha256 + "\", \"size\": " + entry.Size
-            + ", \"coreFingerprint\": \"" + Core + "\", \"appFingerprint\": \"" + App + "\" }\n  ]\n}\n");
+            + ", \"coreFingerprint\": \"" + Core + "\", \"appFingerprint\": \"" + App
+            + "\", \"accessFingerprint\": \"" + Access + "\" }\n  ]\n}\n");
 
         var result = await new UpdateClient(store).CheckAsync(new FileBundleSource(feed), Request());
 
@@ -226,7 +228,13 @@ public sealed class UpdateClientTests : IDisposable
     private BundleStore Store() => new(Path.Combine(_work, "appdata"));
 
     private static UpdateCheckRequest Request(string embeddedVersion = "1.0.0")
-        => new() { CoreFingerprint = Core, AppFingerprint = App, EmbeddedVersion = embeddedVersion };
+        => new()
+        {
+            CoreFingerprint = Core,
+            AppFingerprint = App,
+            AccessFingerprint = Access,
+            EmbeddedVersion = embeddedVersion,
+        };
 
     private string PublishFeed(params (string Version, string Core, string App)[] entries)
     {
@@ -257,11 +265,12 @@ public sealed class UpdateClientTests : IDisposable
                 + ", \"sha256\": \"" + sha + "\""
                 + ", \"size\": " + new FileInfo(path).Length
                 + ", \"coreFingerprint\": \"" + core + "\""
-                + ", \"appFingerprint\": \"" + app + "\" }");
+                + ", \"appFingerprint\": \"" + app + "\""
+                + ", \"accessFingerprint\": \"" + Access + "\" }");
         }
 
         var json = new StringBuilder()
-            .Append("{\n  \"schema\": 1,\n  \"bundles\": [\n")
+            .Append("{\n  \"schema\": 2,\n  \"bundles\": [\n")
             .Append(string.Join(",\n", items))
             .Append("\n  ]\n}\n");
 

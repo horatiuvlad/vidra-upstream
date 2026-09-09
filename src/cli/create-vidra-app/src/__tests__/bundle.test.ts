@@ -86,10 +86,11 @@ describe("feed manifest", () => {
     size: 100,
     coreFingerprint: "core",
     appFingerprint: "app",
+    accessFingerprint: "access",
   });
 
   it("appends a new version", () => {
-    const manifest = mergeManifest({ schema: 1, bundles: [entry("1.0.0", "aaa")] }, entry("1.1.0", "bbb"));
+    const manifest = mergeManifest({ schema: 2, bundles: [entry("1.0.0", "aaa")] }, entry("1.1.0", "bbb"));
 
     expect(manifest.bundles.map((b) => b.version)).toEqual(["1.0.0", "1.1.0"]);
   });
@@ -98,7 +99,7 @@ describe("feed manifest", () => {
     // Two entries claiming one version is a feed that behaves differently
     // depending on which the client happens to pick. No channel in the key:
     // channels are directories now, so two channels are two indexes.
-    const manifest = mergeManifest({ schema: 1, bundles: [entry("1.0.0", "aaa")] }, entry("1.0.0", "ccc"));
+    const manifest = mergeManifest({ schema: 2, bundles: [entry("1.0.0", "aaa")] }, entry("1.0.0", "ccc"));
 
     expect(manifest.bundles).toHaveLength(1);
     expect(manifest.bundles[0]!.sha256).toBe("ccc");
@@ -109,7 +110,7 @@ describe("feed manifest", () => {
     const file = path.join(dir, "bundles.json");
     fs.writeFileSync(file, JSON.stringify({ schema: 99, bundles: [entry("9.9.9", "zzz")] }));
 
-    expect(readManifest(file)).toEqual({ schema: 1, bundles: [] } satisfies BundleManifest);
+    expect(readManifest(file)).toEqual({ schema: 2, bundles: [] } satisfies BundleManifest);
   });
 
   it("survives a corrupt manifest", () => {
@@ -123,7 +124,7 @@ describe("feed manifest", () => {
 
 describe("merging into a feed that already exists", () => {
   const existing = {
-    schema: 1,
+    schema: 2,
     bundles: [
       {
         version: "1.0.0",
@@ -134,6 +135,7 @@ describe("merging into a feed that already exists", () => {
         // dropping this entry strands it.
         coreFingerprint: "old-core",
         appFingerprint: "old-app",
+        accessFingerprint: "old-access",
       },
     ],
   };

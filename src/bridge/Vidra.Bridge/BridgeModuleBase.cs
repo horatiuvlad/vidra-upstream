@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Runtime.ExceptionServices;
 
 namespace Vidra.Bridge;
 
@@ -38,7 +39,16 @@ public abstract class BridgeModuleBase : IBridgeModule
 
         var parameters = methodInfo.GetParameters();
         var args = BuildArguments(parameters, payload, ct);
-        var result = methodInfo.Invoke(this, args);
+        object? result;
+        try
+        {
+            result = methodInfo.Invoke(this, args);
+        }
+        catch (TargetInvocationException ex) when (ex.InnerException is not null)
+        {
+            ExceptionDispatchInfo.Throw(ex.InnerException);
+            throw; // Required for definite assignment; ExceptionDispatchInfo.Throw never returns.
+        }
 
         if (result is Task task)
         {

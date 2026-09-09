@@ -94,9 +94,9 @@ try {
 
   await waitFor(() => responses.length >= 2, 60_000);
   const err = JSON.parse(responses[1]);
-  if (err.success !== false || err.error?.code !== "NATIVE_CONTRACT_NOT_FOUND")
+  if (err.success !== false || err.error?.code !== "NATIVE_ACCESS_DENIED")
     throw new Error(
-      `expected NATIVE_CONTRACT_NOT_FOUND error, got ${JSON.stringify(err)}`,
+      `expected NATIVE_ACCESS_DENIED error, got ${JSON.stringify(err)}`,
     );
 
   console.log("[smoke] echo-ping passed:", responses[0]);

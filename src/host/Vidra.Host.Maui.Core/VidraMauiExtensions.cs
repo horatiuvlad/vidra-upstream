@@ -25,11 +25,15 @@ public static class VidraMauiExtensions
         configureBridge?.Invoke(bridgeOptions);
         builder.Services.AddSingleton(bridgeOptions);
         builder.Services.AddSingleton<IAppWindowService, AppWindowService>();
+        var accessPolicy = BridgePolicyLoader.Load();
+        builder.Services.AddSingleton<IBridgeAccessPolicy>(accessPolicy);
 
         builder.Services.AddSingleton<BridgeDispatcher>(sp =>
         {
-            var dispatcher = new BridgeDispatcher();
-            dispatcher.Register(new FileSystemModule());
+            var dispatcher = new BridgeDispatcher(accessPolicy);
+            dispatcher.Register(new FileSystemModule(
+                accessPolicy.Document.FileSystem,
+                BridgeFileSystemRoots.Resolve));
             dispatcher.Register(new DialogsModule());
             dispatcher.Register(new ClipboardModule());
             dispatcher.Register(new NotificationsModule());
@@ -65,6 +69,7 @@ public static class VidraMauiExtensions
                 RuntimeEvents.HotReloaded.Member);
 
             configureModules?.Invoke(dispatcher);
+            dispatcher.ValidateAccessPolicy();
             return dispatcher;
         });
 
@@ -84,8 +89,8 @@ public static class VidraMauiExtensions
     /// Turns on over-the-air JS bundle updates. Call after <see cref="UseVidra"/>.
     /// </summary>
     /// <remarks>
-    /// With no arguments the app is configured by the <c>vidra.updates</c> block in
-    /// its own <c>package.json</c>, which <c>vidra build</c> stamps into the
+    /// With no arguments the app is configured by the <c>updates</c> block in
+    /// <c>vidra.config.ts</c>, which <c>vidra build</c> stamps into the
     /// bundle — no feed URL there means nothing is ever checked, so calling this
     /// unconditionally (as the template does) costs an app that does not want
     /// updates nothing but a state file read.

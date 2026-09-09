@@ -5,14 +5,15 @@ The full updates guide is published at
 
 The current CLI uses one feed setting for web and whole-app updates:
 
-```json
-{
-  "vidra": {
-    "updates": {
-      "feed": "https://updates.example.com/my-app/"
-    }
-  }
-}
+```ts
+// vidra.config.ts
+import { defineConfig } from "@vidra-dev/sdk/config";
+
+export default defineConfig({
+  updates: {
+    feed: "https://updates.example.com/my-app/",
+  },
+});
 ```
 
 ```bash

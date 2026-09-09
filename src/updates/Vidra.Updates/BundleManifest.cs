@@ -19,6 +19,8 @@ public sealed record BundleEntry
 
     public required string AppFingerprint { get; init; }
 
+    public string? AccessFingerprint { get; init; }
+
     /// <summary>Optional channel label; entries for other channels are ignored.</summary>
     public string? Channel { get; init; }
 }
@@ -26,7 +28,7 @@ public sealed record BundleEntry
 /// <summary>The published index of installable bundles.</summary>
 public sealed record BundleManifest
 {
-    public const int SupportedSchema = 1;
+    public const int SupportedSchema = 2;
 
     public int Schema { get; init; } = SupportedSchema;
 
@@ -84,12 +86,14 @@ public sealed record BundleManifest
                     var sha256 = ReadString(element, "sha256");
                     var coreFingerprint = ReadString(element, "coreFingerprint");
                     var appFingerprint = ReadString(element, "appFingerprint");
+                    var accessFingerprint = ReadString(element, "accessFingerprint");
 
                     // A single unusable entry must not poison the whole feed —
                     // an older client should keep installing the entries it does
                     // understand.
                     if (version is null || url is null || sha256 is null
-                        || coreFingerprint is null || appFingerprint is null)
+                        || coreFingerprint is null || appFingerprint is null
+                        || accessFingerprint is null)
                     {
                         continue;
                     }
@@ -104,6 +108,7 @@ public sealed record BundleManifest
                             : 0,
                         CoreFingerprint = coreFingerprint,
                         AppFingerprint = appFingerprint,
+                        AccessFingerprint = accessFingerprint,
                         Channel = ReadString(element, "channel"),
                     });
                 }

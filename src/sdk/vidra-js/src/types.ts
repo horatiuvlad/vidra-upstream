@@ -32,6 +32,7 @@ export interface NativeContractCapabilities {
 
 export interface Capabilities {
   protocolVersion: number;
+  accessFingerprint: string;
   nativeContracts: Record<string, NativeContractCapabilities>;
 }
 
@@ -39,6 +40,7 @@ export interface BridgeHandshake {
   protocolVersion: number;
   coreFingerprint: string;
   appFingerprint: string;
+  accessFingerprint: string;
 }
 
 /** Sent from C# to JS when calling a registered handler via reverse RPC. */

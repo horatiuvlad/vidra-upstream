@@ -646,12 +646,12 @@ jobs:
         shell: bash
         working-directory: ${{ runner.temp }}/vidra-smoke
         run: |
-          # The whole opt-in a real app makes: a feed URL in package.json. The
+          # The whole opt-in a real app makes: a feed URL in vidra.config.ts. The
           # builder call, the package reference and the entry points all ship in
           # the template, which the assertion below is here to keep honest.
           #
           # A real signing key, made by the command a publisher would run. The
-          # public half goes into package.json, which makes signatures mandatory
+          # public half goes into vidra.config.ts, which makes signatures mandatory
           # for this app — so the whole run also proves the signed path works.
           node "$GITHUB_WORKSPACE/src/cli/create-vidra-app/dist/cli.js" \
             keygen --out ota-signing-key.pem
@@ -664,12 +664,12 @@ jobs:
               process.exit(1);
             }
             const publicKey = fs.readFileSync('ota-signing-key.pem.pub', 'utf8').trim();
-            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
             // feed.web rather than a bare feed string: this app is testing web
             // bundles, and one string turns on *both* tiers, which would demand
             // vpk from a job that has not installed it yet.
-            pkg.vidra = { updates: { feed: { web: 'http://127.0.0.1:8099/' }, publicKeys: [publicKey] } };
-            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+            const config = fs.readFileSync('vidra.config.ts', 'utf8');
+            const updates = 'updates: { feed: { web: \"http://127.0.0.1:8099/\" }, publicKeys: [' + JSON.stringify(publicKey) + '] }';
+            fs.writeFileSync('vidra.config.ts', config.replace(/updates:\s*\{\s*feed:\s*\"\"\s*,?\s*\}/, updates));
           "
           sed 's/__PROJECT_NAMESPACE__/VidraSmoke/' \
             "$GITHUB_WORKSPACE/tests/smoke/ota-main-page.cs.in" \

@@ -4,7 +4,6 @@ import fs from "fs-extra";
 import { execSync } from "node:child_process";
 import type { ProjectInfo } from "../project.js";
 import { createZip, readDirectoryEntries } from "../zip.js";
-import { readUpdateConfig } from "../update-config.js";
 import {
   publicKeyFor,
   resolveSigningKey,
@@ -42,6 +41,7 @@ export interface BundleEntry {
   size: number;
   coreFingerprint: string;
   appFingerprint: string;
+  accessFingerprint: string;
 }
 
 export interface BundleManifest {
@@ -49,13 +49,13 @@ export interface BundleManifest {
   bundles: BundleEntry[];
 }
 
-const SCHEMA = 1;
+const SCHEMA = 2;
 
 export interface WebBundleOptions {
   /** Absolute directory this publishes into, decided by the dist layout. */
   outDir: string;
   /**
-   * The live index this publish adds to. Resolved from `package.json` rather
+   * The live index this publish adds to. Resolved from `vidra.config.ts` rather
    * than passed by hand: forgetting it on a clean CI checkout used to publish
    * an index containing only the newest entry, which strands every install that
    * can only run an older one.
@@ -65,6 +65,10 @@ export interface WebBundleOptions {
   sign?: string;
   /** Skip the Vite build, for when the caller already ran it. */
   skipBuild: boolean;
+  /** Installed bridge access policy expected by this frontend bundle. */
+  accessFingerprint: string;
+  /** Public keys configured by vidra.config.ts. */
+  publicKeys?: readonly string[];
 }
 
 export const runWebBundle = async (
@@ -116,6 +120,7 @@ export const runWebBundle = async (
     size: archive.length,
     coreFingerprint: fingerprints.core,
     appFingerprint: fingerprints.app,
+    accessFingerprint: options.accessFingerprint,
   };
 
   const manifestPath = path.join(outDir, "bundles.json");
@@ -133,7 +138,7 @@ export const runWebBundle = async (
     }),
   );
 
-  stepSignManifest(project, outDir, manifestBytes, options.sign);
+  stepSignManifest(outDir, manifestBytes, options.sign, options.publicKeys);
   console.log(
     row({
       glyph: "plan",
@@ -273,13 +278,11 @@ const signingKeyFor = (options: Pick<WebBundleOptions, "sign">): string | null =
  * a mystery later.
  */
 const stepSignManifest = (
-  project: ProjectInfo,
   outDir: string,
   manifestBytes: Buffer,
   keyPath?: string,
+  publicKeys: readonly string[] = [],
 ): void => {
-  const configuredKeys = readUpdateConfig(project.root)?.publicKeys ?? [];
-
   let privateKeyPem: string | null = null;
   try {
     privateKeyPem = resolveSigningKey(keyPath);
@@ -288,7 +291,7 @@ const stepSignManifest = (
   }
 
   if (!privateKeyPem) {
-    if (configuredKeys.length > 0) {
+    if (publicKeys.length > 0) {
       fail(
         "sign feed",
         "this app trusts a signing key, so an unsigned feed would be refused by every " +
@@ -327,7 +330,7 @@ const stepSignManifest = (
     fail(
       "sign feed",
       `signed with key ${document.keyId}, which is not among the ${configuredKeys.length} ` +
-        "key(s) in package.json — installed apps would reject this feed",
+        "key(s) in vidra.config.ts — installed apps would reject this feed",
     );
   }
 

@@ -18,6 +18,17 @@ public sealed class ContractFixtureTests
     private static JsonElement AsElement(string json)
         => JsonSerializer.Deserialize<JsonElement>(json);
 
+    private static BridgeDispatcher CreateEchoDispatcher()
+        => new(new BridgeAccessPolicy(new BridgePolicyDocument
+        {
+            NativeMethods =
+            [
+                new("echo", "ping"),
+                new("echo", "fail"),
+                new("does-not-exist", "noop"),
+            ],
+        }));
+
     private static async Task<JsonElement> DispatchAsync(BridgeDispatcher dispatcher, string requestFixture)
     {
         var requestJson = ReadFixture(requestFixture);
@@ -28,7 +39,7 @@ public sealed class ContractFixtureTests
     [Fact]
     public async Task Invoke_Success_Matches_Fixture()
     {
-        var dispatcher = new BridgeDispatcher();
+        var dispatcher = CreateEchoDispatcher();
         dispatcher.Register(new EchoModule());
 
         var actual = await DispatchAsync(dispatcher, "invoke.success.request.json");
@@ -43,7 +54,7 @@ public sealed class ContractFixtureTests
     [Fact]
     public async Task Invoke_ModuleNotFound_Matches_Fixture()
     {
-        var dispatcher = new BridgeDispatcher();
+        var dispatcher = CreateEchoDispatcher();
 
         var actual = await DispatchAsync(dispatcher, "invoke.module_not_found.request.json");
         var expected = AsElement(ReadFixture("invoke.module_not_found.response.json"));
@@ -59,7 +70,7 @@ public sealed class ContractFixtureTests
     [Fact]
     public async Task Invoke_ModuleError_Matches_Fixture()
     {
-        var dispatcher = new BridgeDispatcher();
+        var dispatcher = CreateEchoDispatcher();
         dispatcher.Register(new EchoModule());
 
         var actual = await DispatchAsync(dispatcher, "invoke.module_error.request.json");
@@ -91,7 +102,7 @@ public sealed class ContractFixtureTests
     [Fact]
     public async Task Capabilities_Fixture_Matches_Dispatcher_Shape()
     {
-        var dispatcher = new BridgeDispatcher();
+        var dispatcher = CreateEchoDispatcher();
         dispatcher.Register(new EchoOnlyModule());
 
         var request = BridgeSerializer.Serialize(new BridgeRequest

@@ -11,9 +11,9 @@ public static class MauiProgram
 
         // Updates are wired up and doing nothing, which is the intended state
         // until this app has a feed to check. The switch is already in
-        // package.json, empty — filling it in is the whole opt-in:
+        // vidra.config.ts, empty — filling it in is the whole opt-in:
         //
-        //   "vidra": { "updates": { "feed": "https://updates.example.com/notes/" } }
+        //   updates: { feed: "https://updates.example.com/notes/" }
         //
         // Type a URL there, or run `npx vidra updates init --feed <url>`, then
         // publish with `npx vidra build` (both tiers) or `npx vidra build --web`

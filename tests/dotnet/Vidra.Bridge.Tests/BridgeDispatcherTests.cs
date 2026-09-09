@@ -7,7 +7,17 @@ public sealed class BridgeDispatcherTests
 {
     private static BridgeDispatcher CreateDispatcher(params IBridgeModule[] modules)
     {
-        var dispatcher = new BridgeDispatcher();
+        var dispatcher = new BridgeDispatcher(new BridgeAccessPolicy(new BridgePolicyDocument
+        {
+            NativeMethods =
+            [
+                new("echo", "ping"),
+                new("echo", "fail"),
+                new("echo", "defaults"),
+                new("echo", "fireAndForget"),
+            ],
+            Events = [new("runtime", "hotReloaded")],
+        }));
         foreach (var module in modules)
             dispatcher.Register(module);
         return dispatcher;
@@ -59,7 +69,10 @@ public sealed class BridgeDispatcherTests
     [Fact]
     public async Task DispatchAsync_Returns_ModuleNotFound_For_Unknown_Module()
     {
-        var dispatcher = CreateDispatcher();
+        var dispatcher = new BridgeDispatcher(new BridgeAccessPolicy(new BridgePolicyDocument
+        {
+            NativeMethods = [new("missing", "noop")],
+        }));
         var request = BridgeSerializer.Serialize(new BridgeRequest
         {
             Id = "req_3",
@@ -72,6 +85,27 @@ public sealed class BridgeDispatcherTests
         response.Success.Should().BeFalse();
         response.Error!.Code.Should().Be("NATIVE_CONTRACT_NOT_FOUND");
         response.Error.Message.Should().Contain("missing");
+    }
+
+    [Fact]
+    public async Task DispatchAsync_Denies_Registered_But_Ungranted_Method()
+    {
+        var invoked = false;
+        var dispatcher = new BridgeDispatcher();
+        dispatcher.Register(new TrackingModule(() => invoked = true));
+        var request = BridgeSerializer.Serialize(new BridgeRequest
+        {
+            Id = "denied_1",
+            Contract = "tracking",
+            Member = "run",
+        });
+
+        var response = Deserialize(await dispatcher.DispatchAsync(request));
+
+        response.Success.Should().BeFalse();
+        response.Error!.Code.Should().Be("NATIVE_ACCESS_DENIED");
+        invoked.Should().BeFalse();
+        dispatcher.GetCapabilities().NativeContracts.Should().BeEmpty();
     }
 
     [Fact]
@@ -159,11 +193,22 @@ public sealed class BridgeDispatcherTests
     [Fact]
     public async Task DispatchAsync_Last_Register_Wins_For_Duplicate_Module_Names()
     {
-        var dispatcher = new BridgeDispatcher();
+        var dispatcher = CreateDispatcher();
         dispatcher.Register(new EchoModule());
         dispatcher.Register(new EchoModule());
 
         var caps = dispatcher.GetCapabilities();
         caps.NativeContracts.Should().HaveCount(1);
+    }
+
+    [BridgeModule("tracking")]
+    private sealed class TrackingModule(Action invoke) : BridgeModuleBase
+    {
+        [BridgeMethod("run")]
+        public Task RunAsync(CancellationToken ct)
+        {
+            invoke();
+            return Task.CompletedTask;
+        }
     }
 }

@@ -2,11 +2,11 @@ import path from "node:path";
 import { parseArgs } from "../utils.js";
 import { detectProject } from "../project.js";
 import {
-  readUpdateConfig,
   resolveFeeds,
-  writeUpdateConfig,
   type FeedSplit,
+  type UpdateConfig,
 } from "../update-config.js";
+import { loadVidraConfig, writeVidraUpdateConfig } from "../config.js";
 import { FeedUriError } from "../feed-uri.js";
 import { writeSigningKeyPair } from "./keygen.js";
 import { resolveVpk } from "../velopack.js";
@@ -27,7 +27,7 @@ import {
  * `vidra updates` — reading and writing the only switch there is.
  *
  * Every scaffolded app already carries the whole updater *and* a blank `feed`
- * field in its own `package.json`. Typing a URL in is the entire opt-in, so this
+ * field in `vidra.config.ts`. Typing a URL in is the entire opt-in, so this
  * command is a convenience rather than a gate: `init` writes the same field a
  * hand-edit would, and `vidra updates` reads back what that left on.
  */
@@ -39,10 +39,10 @@ export const updatesCommand = async (argv: string[]): Promise<void> => {
 
   switch (sub) {
     case "status":
-      printStatus();
+      await printStatus();
       break;
     case "init":
-      initUpdates(args);
+      await initUpdates(args);
       break;
     default:
       console.error(
@@ -53,16 +53,16 @@ export const updatesCommand = async (argv: string[]): Promise<void> => {
   }
 };
 
-const initUpdates = (args: ReturnType<typeof parseArgs>): void => {
+const initUpdates = async (args: ReturnType<typeof parseArgs>): Promise<void> => {
   const project = detectProject(process.cwd());
-  const existing = readUpdateConfig(project.root);
+  const existing = (await loadVidraConfig(project.root, configContext())).updates;
   const force = !!args.force;
 
   const feed = typeof args.feed === "string" ? args.feed.trim() : null;
   const web = typeof args.web === "string" ? args.web.trim() : null;
   const app = typeof args.app === "string" ? args.app.trim() : null;
 
-  if (!feed && !web && !app) {
+  if (!feed && !web && !app && !args.keygen) {
     console.error(row({ glyph: "error", detail: dim("nothing to configure") }));
     console.error(
       footer(
@@ -77,19 +77,23 @@ const initUpdates = (args: ReturnType<typeof parseArgs>): void => {
   // `--feed` is one destination for both tiers, which is the common case and the
   // shape that keeps everything in one directory. `--web` / `--app` split them,
   // for when the app packages are big enough to want their own bucket.
-  const next: string | FeedSplit = feed ? feed : { ...(web ? { web } : {}), ...(app ? { app } : {}) };
+  const next: string | FeedSplit | undefined = feed
+    ? feed
+    : web || app
+      ? { ...(web ? { web } : {}), ...(app ? { app } : {}) }
+      : existing?.feed;
 
   // Refusing to silently repoint a live feed is the same rule as `keygen`: apps
   // already installed are looking at the old URL, and nothing about that is
   // recoverable from the terminal afterwards.
-  if (existing?.feed && !force && JSON.stringify(existing.feed) !== JSON.stringify(next)) {
+  if (existing?.feed && next && !force && JSON.stringify(existing.feed) !== JSON.stringify(next)) {
     console.error(
       row({
         glyph: "error",
         label: "already set",
         labelWidth: LABEL_WIDTH,
         detail: dim(
-          "vidra.updates.feed already points somewhere else — installed apps are checking that URL",
+          "updates.feed already points somewhere else — installed apps are checking that URL",
         ),
       }),
     );
@@ -99,7 +103,12 @@ const initUpdates = (args: ReturnType<typeof parseArgs>): void => {
 
   console.log(header("updates", "init"));
 
-  const written = writeUpdateConfig(project.root, { feed: next });
+  let written: UpdateConfig = {
+    ...existing,
+    ...(next ? { feed: next } : {}),
+    ...(!next && !existing && args.keygen ? { feed: "" } : {}),
+  };
+  writeVidraUpdateConfig(project.root, written);
 
   let feeds;
   try {
@@ -114,13 +123,23 @@ const initUpdates = (args: ReturnType<typeof parseArgs>): void => {
   feedRow("whole app", feeds.app?.base ?? null, "npx vidra build packs a release here");
 
   if (args.keygen) {
-    signWithNewKey(project.root, force);
+    const publicKey = signWithNewKey(project.root, force);
+    if (publicKey) {
+      written = {
+        ...written,
+        publicKeys: [
+          ...(written.publicKeys ?? []).filter((key) => key !== publicKey),
+          publicKey,
+        ],
+      };
+      writeVidraUpdateConfig(project.root, written);
+    }
   }
 
   console.log(
     row({
       glyph: "done",
-      label: "package.json",
+      label: "vidra.config.ts",
       labelWidth: LABEL_WIDTH,
       detail: dim("written — the app already carries the updater, so that is the whole setup"),
     }),
@@ -155,7 +174,7 @@ const initUpdates = (args: ReturnType<typeof parseArgs>): void => {
 };
 
 /** Generates a key, wires the public half, and says where the private half went. */
-const signWithNewKey = (projectRoot: string, force: boolean): void => {
+const signWithNewKey = (projectRoot: string, force: boolean): string | null => {
   const out = path.join(projectRoot, "vidra-signing-key.pem");
   const key = writeSigningKeyPair(out, force);
 
@@ -168,22 +187,15 @@ const signWithNewKey = (projectRoot: string, force: boolean): void => {
         detail: dim("vidra-signing-key.pem already exists — kept, and left trusted as it is"),
       }),
     );
-    return;
+    return null;
   }
-
-  // Appended, not replaced: `publicKeys` is a list precisely so a new key can
-  // ship beside the old one for a release before the old one is dropped.
-  const existing = readUpdateConfig(projectRoot)?.publicKeys ?? [];
-  writeUpdateConfig(projectRoot, {
-    publicKeys: [...existing.filter((k) => k !== key.publicKey), key.publicKey],
-  });
 
   console.log(
     row({
       glyph: "done",
       label: "signing key",
       labelWidth: LABEL_WIDTH,
-      detail: `${value("vidra-signing-key.pem")} ${dim(`(key ${key.keyId}) — trusted in package.json`)}`,
+      detail: `${value("vidra-signing-key.pem")} ${dim(`(key ${key.keyId}) — trusted in vidra.config.ts`)}`,
     }),
   );
   console.log(
@@ -194,11 +206,12 @@ const signWithNewKey = (projectRoot: string, force: boolean): void => {
       detail: amber("never commit it — it is the authority to run code in every installed copy"),
     }),
   );
+  return key.publicKey;
 };
 
-const printStatus = (): void => {
+const printStatus = async (): Promise<void> => {
   const project = detectProject(process.cwd());
-  const config = readUpdateConfig(project.root);
+  const config = (await loadVidraConfig(project.root, configContext())).updates;
 
   console.log(header("updates", project.projectName));
 
@@ -212,8 +225,8 @@ const printStatus = (): void => {
     return;
   }
 
-  feedRow("web bundle", feeds.web?.base ?? null, "vidra.updates.feed is empty");
-  feedRow("whole app", feeds.app?.base ?? null, "vidra.updates.feed is empty");
+  feedRow("web bundle", feeds.web?.base ?? null, "updates.feed is empty");
+  feedRow("whole app", feeds.app?.base ?? null, "updates.feed is empty");
 
   const keys = config?.publicKeys?.length ?? 0;
   console.log(
@@ -233,7 +246,7 @@ const printStatus = (): void => {
     console.log(
       footer(
         dim(
-          `the field is in package.json waiting for a URL — fill it in, or: ${lime("npx vidra updates init --feed <url>")}`,
+          `the field is in vidra.config.ts waiting for a URL — fill it in, or: ${lime("npx vidra updates init --feed <url>")}`,
         ),
       ),
     );
@@ -248,6 +261,16 @@ const printStatus = (): void => {
   }
   console.log();
 };
+
+const configContext = () => ({
+  command: "updates" as const,
+  mode: "production" as const,
+  target: process.platform === "darwin"
+    ? "macos" as const
+    : process.platform === "win32"
+      ? "windows" as const
+      : null,
+});
 
 const feedRow = (label: string, base: string | null, off: string): void => {
   console.log(

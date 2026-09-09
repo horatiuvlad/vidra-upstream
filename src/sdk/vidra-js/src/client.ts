@@ -45,6 +45,7 @@ export class VidraClient {
   private handlers = new Map<string, JsHandler>();
   private coreFingerprint = EMPTY_FINGERPRINT;
   private appFingerprint = EMPTY_FINGERPRINT;
+  private expectedAccessFingerprint: string | null = null;
   readonly unsafe: UnsafeVidraClient;
 
   constructor(options: VidraClientOptions = {}) {
@@ -95,6 +96,11 @@ export class VidraClient {
     } else {
       this.appFingerprint = fingerprint;
     }
+  }
+
+  /** @internal Stamped by the Vidra CLI into the frontend build. */
+  registerExpectedAccessFingerprint(fingerprint: string): void {
+    this.expectedAccessFingerprint = fingerprint;
   }
 
   /**
@@ -286,6 +292,12 @@ export class VidraClient {
     }
     if (handshake.appFingerprint !== this.appFingerprint) {
       mismatches.push("app contract fingerprint");
+    }
+    if (
+      this.expectedAccessFingerprint !== null &&
+      handshake.accessFingerprint !== this.expectedAccessFingerprint
+    ) {
+      mismatches.push("bridge access fingerprint");
     }
 
     if (mismatches.length === 0) return;

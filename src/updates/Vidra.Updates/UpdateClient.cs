@@ -67,7 +67,8 @@ public sealed class UpdateClient(BundleStore store, BundleInstaller? installer =
                 request.AppFingerprint,
                 installedVersion,
                 request.Channel,
-                state.Blocked);
+                state.Blocked,
+                request.AccessFingerprint);
 
             if (candidate is null)
             {
@@ -107,7 +108,10 @@ public sealed class UpdateClient(BundleStore store, BundleInstaller? installer =
             await _installer.InstallAsync(source, entry, ct).ConfigureAwait(false);
 
             var identity = new BundleIdentity(
-                entry.Version, request.CoreFingerprint, request.AppFingerprint);
+                entry.Version, request.CoreFingerprint, request.AppFingerprint)
+            {
+                AccessFingerprint = request.AccessFingerprint,
+            };
 
             // Re-read rather than write back the snapshot this check started
             // from. A download takes as long as the network takes, and the
@@ -157,7 +161,8 @@ public sealed class UpdateClient(BundleStore store, BundleInstaller? installer =
             request.AppFingerprint,
             installedVersion,
             request.Channel,
-            state.Blocked);
+            state.Blocked,
+            request.AccessFingerprint);
 
         var counts = evaluated
             .GroupBy(candidate => candidate.Rejection)
@@ -175,6 +180,7 @@ public sealed class UpdateClient(BundleStore store, BundleInstaller? installer =
             BundleRejection.WrongChannel => "on another channel",
             BundleRejection.IncompatibleCoreContract => "built against a different core contract",
             BundleRejection.IncompatibleAppContract => "built against a different app contract",
+            BundleRejection.IncompatibleAccessPolicy => "built for a different bridge access policy",
             BundleRejection.UnreadableVersion => "with an unreadable version",
             BundleRejection.NotNewer => "not newer than what is running",
             BundleRejection.PreviouslyFailed => "already rejected after failing to boot",
@@ -190,6 +196,9 @@ public sealed record UpdateCheckRequest
 
     /// <summary><c>BridgeContractRegistry.Fingerprint(App)</c>.</summary>
     public required string AppFingerprint { get; init; }
+
+    /// <summary>The immutable native bridge access policy installed in this app.</summary>
+    public required string AccessFingerprint { get; init; }
 
     /// <summary>The version of the bundle the app shipped with, used when nothing is installed yet.</summary>
     public string? EmbeddedVersion { get; init; }

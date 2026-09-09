@@ -16,13 +16,19 @@ public sealed record BundleProbation(string Sha256, int Attempts);
 /// in step by every transition, and the first one that forgets is a bundle
 /// carrying another bundle's identity.
 /// </remarks>
-public sealed record BundleIdentity(string Version, string CoreFingerprint, string AppFingerprint);
+public sealed record BundleIdentity(string Version, string CoreFingerprint, string AppFingerprint)
+{
+    public string? AccessFingerprint { get; init; }
+}
 
 /// <summary>
 /// The contracts of the binary that is running right now, and the version of the
 /// bundle it ships with.
 /// </summary>
-public sealed record HostContracts(string CoreFingerprint, string AppFingerprint, string? EmbeddedVersion);
+public sealed record HostContracts(string CoreFingerprint, string AppFingerprint, string? EmbeddedVersion)
+{
+    public string? AccessFingerprint { get; init; }
+}
 
 /// <summary>
 /// What the host knows about installed bundles, persisted as
@@ -184,12 +190,16 @@ public sealed record UpdateState
                     var version = ReadString(property.Value, "version");
                     var core = ReadString(property.Value, "coreFingerprint");
                     var app = ReadString(property.Value, "appFingerprint");
+                    var access = ReadString(property.Value, "accessFingerprint");
 
                     // A half-written identity cannot vouch for anything, so drop it
                     // rather than record one that revalidation would have to guess at.
                     if (version is null || core is null || app is null) continue;
 
-                    installed[property.Name] = new BundleIdentity(version, core, app);
+                    installed[property.Name] = new BundleIdentity(version, core, app)
+                    {
+                        AccessFingerprint = access,
+                    };
                 }
             }
 
@@ -249,7 +259,10 @@ public sealed record UpdateState
                 .Select(pair =>
                     $"\n    {Quote(pair.Key)}: {{ \"version\": {Quote(pair.Value.Version)}, "
                     + $"\"coreFingerprint\": {Quote(pair.Value.CoreFingerprint)}, "
-                    + $"\"appFingerprint\": {Quote(pair.Value.AppFingerprint)} }}");
+                    + $"\"appFingerprint\": {Quote(pair.Value.AppFingerprint)}"
+                    + (pair.Value.AccessFingerprint is null
+                        ? " }"
+                        : $", \"accessFingerprint\": {Quote(pair.Value.AccessFingerprint)} }}"));
 
             json.Append(",\n  \"installed\": {")
                 .Append(string.Join(",", entries))

@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "nativeMethods": [
+    {
+      "contract": "café",
+      "member": "open&show"
+    },
+    {
+      "contract": "café",
+      "member": "ouvrir"
+    }
+  ],
+  "events": [
+    {
+      "contract": "état",
+      "member": "changé"
+    }
+  ],
+  "filesystem": [
+    {
+      "root": "appData",
+      "relativePath": "crème/notes&data",
+      "methods": [
+        {
+          "contract": "filesystem",
+          "member": "readText"
+        }
+      ]
+    }
+  ]
+}

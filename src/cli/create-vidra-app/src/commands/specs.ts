@@ -35,7 +35,7 @@ export const RUN: CommandSpec = {
 
 export const BUILD: CommandSpec = {
   name: "build",
-  summary: "build the app, and publish whatever package.json configures",
+  summary: "build the app, and publish whatever vidra.config.ts configures",
   usage: "build [--app|--web] [--channel <name>] [--target <os>] [--plan]",
   flags: [
     { name: "--app", describe: "the installable app and its release, no web bundle" },

@@ -61,3 +61,4 @@ export * from "./runtime.js";
 export * from "./secureStorage.js";
 export * from "./share.js";
 export * from "./textToSpeech.js";
+export { native, events } from "./access.js";

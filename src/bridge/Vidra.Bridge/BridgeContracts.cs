@@ -58,6 +58,15 @@ public sealed class JsContractTimeoutException(string contract, string member, T
     public TimeSpan Timeout { get; } = timeout;
 }
 
+/// <summary>
+/// A native module rejected a request with a stable bridge-visible error code.
+/// </summary>
+public class BridgeInvocationException(string code, string message)
+    : Exception(message)
+{
+    public string Code { get; } = code;
+}
+
 public enum BridgeManifestScope
 {
     Core,

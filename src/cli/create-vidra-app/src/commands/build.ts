@@ -5,7 +5,6 @@ import { parseArgs } from "../utils.js";
 import { formatBuildError, formatProcessError } from "../exec.js";
 import { resolveAppVersion, versionPublishArgs } from "../version.js";
 import {
-  readUpdateConfig,
   resolveFeeds,
   stampedConfigFor,
   stampUpdateConfig,
@@ -13,6 +12,12 @@ import {
   type ResolvedFeeds,
   type UpdateConfig,
 } from "../update-config.js";
+import {
+  loadVidraConfig,
+  writeBridgePolicy,
+  writeFrontendAccessFingerprint,
+  type LoadedVidraConfig,
+} from "../config.js";
 import { FeedUriError, manifestUrlFor } from "../feed-uri.js";
 import { rejectUnknownFlags } from "../help.js";
 import { BUILD } from "./specs.js";
@@ -100,7 +105,7 @@ export const parseBuildMode = (args: Record<string, unknown>): BuildMode =>
  * The channel this artifact belongs to, or null for the default one.
  *
  * A build input rather than configuration, because the same commit must be able
- * to produce a stable artifact and a beta one. `package.json` describes the app;
+ * to produce a stable artifact and a beta one. `vidra.config.ts` describes the app;
  * the stamped `vidra-updates.json` describes this build of it.
  */
 export const resolveChannel = (
@@ -143,7 +148,17 @@ export const buildCommand = async (argv: string[]): Promise<void> => {
   const target = mode === "web" ? null : resolveTarget(args["target"]);
 
   const project = detectProject(process.cwd());
-  const updateConfig = readUpdateConfig(project.root);
+  const loadedConfig = await loadVidraConfig(project.root, {
+    command: "build",
+    mode: "production",
+    target: target?.name as "macos" | "windows" | null,
+  });
+  const updateConfig = loadedConfig.updates;
+  if (!plan) {
+    writeFrontendAccessFingerprint(project.uiDir, loadedConfig.accessFingerprint);
+    if (mode !== "web")
+      writeBridgePolicy(project.hostDir, loadedConfig);
+  }
 
   let feeds: ResolvedFeeds;
   try {
@@ -172,7 +187,7 @@ export const buildCommand = async (argv: string[]): Promise<void> => {
           label: "no web feed",
           labelWidth: LABEL_WIDTH,
           detail: dim(
-            "nothing to publish — set vidra.updates.feed (npx vidra updates init --feed <url>)",
+            "nothing to publish — set updates.feed in vidra.config.ts (npx vidra updates init --feed <url>)",
           ),
         }),
       );
@@ -198,7 +213,13 @@ export const buildCommand = async (argv: string[]): Promise<void> => {
       return;
     }
 
-    await stepWebBundle(project, layout.web, feeds, typeof args["sign"] === "string" ? args["sign"] : undefined);
+    await stepWebBundle(
+      project,
+      layout.web,
+      feeds,
+      loadedConfig,
+      typeof args["sign"] === "string" ? args["sign"] : undefined,
+    );
     console.log();
     console.log(footer(`${dim("done \u2014")} ${value(path.relative(project.root, layout.web))}`));
     console.log();
@@ -241,7 +262,7 @@ export const buildCommand = async (argv: string[]): Promise<void> => {
         glyph: "error",
         label: "vpk",
         labelWidth: LABEL_WIDTH,
-        detail: dim("not installed, and whole-app updates are on because vidra.updates.feed is set"),
+        detail: dim("not installed, and whole-app updates are on because updates.feed is set"),
       }),
     );
     console.error(footer(dim(`install it:  ${value("dotnet tool install -g vpk")}`)));
@@ -385,7 +406,7 @@ export const buildCommand = async (argv: string[]): Promise<void> => {
 /**
  * Publishes the web bundle into its feed directory.
  *
- * `mergeFrom` is not a flag any more: the live index is wherever `package.json`
+ * `mergeFrom` is not a flag any more: the live index is wherever `vidra.config.ts`
  * says this app publishes, so the "forgot `--merge-from` on a clean CI checkout
  * and published an index containing only the newest entry" failure cannot
  * happen. Passing it explicitly is what a publisher would have had to remember.
@@ -394,12 +415,15 @@ const stepWebBundle = async (
   project: ProjectInfo,
   outDir: string,
   feeds: ResolvedFeeds,
+  config: LoadedVidraConfig,
   sign: string | undefined,
 ): Promise<void> => {
   await runWebBundle(project, {
     outDir,
     mergeFrom: feeds.web ? manifestUrlFor(feeds.web.base) : undefined,
     sign,
+    accessFingerprint: config.accessFingerprint,
+    publicKeys: config.updates?.publicKeys,
     // In `all` mode the app half already ran Vite into the same `ui/dist`.
     skipBuild: fs.existsSync(path.join(project.uiDir, "dist", "index.html")),
   });
@@ -745,7 +769,7 @@ const stepCopyAssets = (project: ProjectInfo): void => {
 };
 
 /**
- * Stamps the app's `vidra.updates` config into the bundle, so the host can read a
+ * Stamps the app's `updates` config into the bundle, so the host can read a
  * feed URL at startup without the developer writing any C#. Runs after the asset
  * copy because it writes into the same `Resources/Raw` directory.
  */

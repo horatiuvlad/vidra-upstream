@@ -300,6 +300,7 @@ describe("VidraClient protocol negotiation", () => {
         protocolVersion: 2,
         coreFingerprint: emptyFingerprint,
         appFingerprint: emptyFingerprint,
+        accessFingerprint: "access",
       }),
     ).not.toThrow();
   });
@@ -312,6 +313,7 @@ describe("VidraClient protocol negotiation", () => {
         protocolVersion: 1,
         coreFingerprint: emptyFingerprint,
         appFingerprint: emptyFingerprint,
+        accessFingerprint: "access",
       }),
     ).toThrow("Bridge contract mismatch");
     expect(document.querySelector('[role="alert"]')?.textContent).toContain(
@@ -329,7 +331,22 @@ describe("VidraClient protocol negotiation", () => {
         protocolVersion: 2,
         coreFingerprint: "core-hash",
         appFingerprint: "app-hash",
+        accessFingerprint: "access",
       }),
     ).not.toThrow();
+  });
+
+  it("rejects a frontend built for a different access policy", () => {
+    const client = new VidraClient({ transport: new MockTransport() });
+    client.registerExpectedAccessFingerprint("expected-access");
+
+    expect(() =>
+      (window as any).__vidra_initialize({
+        protocolVersion: 2,
+        coreFingerprint: emptyFingerprint,
+        appFingerprint: emptyFingerprint,
+        accessFingerprint: "installed-access",
+      }),
+    ).toThrow("bridge access fingerprint");
   });
 });

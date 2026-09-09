@@ -99,6 +99,7 @@ try {
     size: goodArchive.size,
     coreFingerprint: "0".repeat(64),
     appFingerprint: fingerprints.app,
+    accessFingerprint: fingerprints.access,
   });
   const mismatch = launch("mismatch");
   expect(mismatch.pendingVersion, null, "a bundle for another core contract is refused");
@@ -112,6 +113,7 @@ try {
     size: goodArchive.size,
     coreFingerprint: fingerprints.core,
     appFingerprint: fingerprints.app,
+    accessFingerprint: fingerprints.access,
   });
   const corrupt = launch("corrupt");
   expect(corrupt.pendingVersion, null, "a bundle whose sha256 does not match is refused");
@@ -154,6 +156,7 @@ try {
       size: goodArchive.size,
       coreFingerprint: fingerprints.core,
       appFingerprint: fingerprints.app,
+      accessFingerprint: fingerprints.access,
     });
     writeManifest(tampered, { sign: false });
     console.log("==> feed edited to offer 2.0.0, signature left untouched");
@@ -190,7 +193,7 @@ process.exit(failures === 0 ? 0 : 1);
  * and bumping the version so it outranks what the app shipped with.
  *
  * The output directory is not passed: it is derived from the app's own
- * `vidra.updates.feed`, which the rig points at this scratch feed. Publishing
+ * `updates.feed` in `vidra.config.ts`, which the rig points at this scratch feed. Publishing
  * somewhere the app is not reading from is the failure that costs a release, so
  * the two are one setting rather than two.
  */
@@ -226,7 +229,11 @@ function publishGoodBundle() {
   if (!entry) throw new Error("vidra bundle wrote no manifest entry");
 
   goodArchive = { name: entry.url, sha256: entry.sha256, size: entry.size };
-  fingerprints = { core: entry.coreFingerprint, app: entry.appFingerprint };
+  fingerprints = {
+    core: entry.coreFingerprint,
+    app: entry.appFingerprint,
+    access: entry.accessFingerprint,
+  };
   console.log(
     `==> published ${entry.version} ${entry.url} ` +
       `(core=${entry.coreFingerprint.slice(0, 12)} app=${entry.appFingerprint.slice(0, 12)})`,
@@ -252,6 +259,7 @@ function publishBrokenBundle(version) {
     size: bytes.length,
     coreFingerprint: fingerprints.core,
     appFingerprint: fingerprints.app,
+    accessFingerprint: fingerprints.access,
   };
 }
 

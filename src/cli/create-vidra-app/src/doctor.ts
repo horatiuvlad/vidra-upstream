@@ -12,13 +12,11 @@ import { resolveNotaryCredentials } from "./notarize.js";
 import { resolveWindowsSigningConfig } from "./windows-signing.js";
 import { resolveVpk, vpkVersion } from "./velopack.js";
 import {
-  readUpdateBlockState,
-  readUpdateConfig,
   resolveFeeds,
   type ResolvedFeeds,
-  type UpdateBlockState,
   type UpdateConfig,
 } from "./update-config.js";
+import { loadVidraConfig } from "./config.js";
 import { FeedUriError } from "./feed-uri.js";
 import { tryDetectProject } from "./project.js";
 
@@ -534,24 +532,15 @@ export const checkVelopack = (required: boolean): Requirement => {
  * shipped live, whose own source is missing the parts a package cannot
  * retrofit.
  *
- * It still has to be `doctor` that says so. An app with nothing configured logs
- * nothing at runtime, deliberately, so a misspelled key is indistinguishable
- * from "updates not wanted" and the symptom arrives much later, as nobody
- * receiving an update.
+ * Typed config loading catches unknown keys before this runs. Doctor handles
+ * valid update settings that are internally consistent but cannot work with
+ * the native project as wired.
  *
  * A pure function over what was read, so every state below is a unit test
  * rather than a scaffolded app someone has to break by hand.
  */
 export const diagnoseUpdateConfiguration = (input: {
   config: UpdateConfig | null;
-  /**
-   * What state the raw `vidra.updates` block is in. Every scaffolded app has
-   * one, blank, so its mere presence says nothing — but a block somebody has
-   * typed into that still turns nothing on is a mistake, and a block that
-   * parses to nothing (`feedUrl` for `feed`) leaves `config` null. Telling
-   * those apart is the whole reason this is passed separately.
-   */
-  blockState: UpdateBlockState;
   /** Source of `MauiProgram.cs`, or null when it could not be read. */
   mauiProgram: string | null;
   /** Source of the host `.csproj`, or null when it could not be read. */
@@ -562,9 +551,7 @@ export const diagnoseUpdateConfiguration = (input: {
   publishedUnsigned: boolean;
 }): Requirement[] => {
   const { config } = input;
-  // Absent, or the blank block every fresh app ships: this app has said nothing
-  // about updates, and saying so back on every `doctor` run is noise.
-  if (input.blockState !== "edited") return [];
+  if (!config) return [];
 
   let feeds: ResolvedFeeds;
   try {
@@ -583,17 +570,14 @@ export const diagnoseUpdateConfiguration = (input: {
 
   const found: Requirement[] = [];
 
-  // A block that exists and turns nothing on is almost always a typo — and it
-  // is the one mistake nothing else can catch, because a misspelled `feed`
-  // reads exactly like an app that wants no updates.
   if (!feeds.web && !feeds.app) {
     found.push({
       name: "Update feed",
       status: "missing",
       detail:
-        config?.enabled === false
-          ? "vidra.updates is switched off with enabled: false — nothing is checked"
-          : "vidra.updates has no feed URL, so nothing is ever checked (a misspelled key looks exactly like this)",
+        config.enabled === false
+          ? "updates are switched off with enabled: false — nothing is checked"
+          : "vidra.config.ts updates has no feed URL, so nothing is ever checked",
       fix: "npx vidra updates init --feed <url>",
     });
     return found;
@@ -688,15 +672,11 @@ const publishedFeeds = (projectRoot: string): string[] => {
 };
 
 /** Reads what {@link diagnoseUpdateConfiguration} needs off disk. */
-const inspectUpdateConfiguration = (): Requirement[] => {
+const inspectUpdateConfiguration = (config: UpdateConfig | null): Requirement[] => {
   const project = tryDetectProject(process.cwd());
   if (!project) return [];
 
-  // Every app ships the updater and a blank `vidra.updates` block, so neither
-  // says anything about intent. What does is somebody having typed into it.
-  const blockState = readUpdateBlockState(project.root);
-  if (blockState !== "edited") return [];
-  const config = readUpdateConfig(project.root);
+  if (!config) return [];
 
   const entryPoints: Record<string, string> = {};
   for (const platform of ["MacCatalyst", "Windows"]) {
@@ -722,7 +702,6 @@ const inspectUpdateConfiguration = (): Requirement[] => {
     ...(nativeWanted || resolveVpk() ? [checkVelopack(nativeWanted)] : []),
     ...diagnoseUpdateConfiguration({
       config,
-      blockState,
       mauiProgram: readIfPresent(path.join(project.hostDir, "MauiProgram.cs")),
       csproj: readIfPresent(project.csprojPath),
       entryPoints,
@@ -742,7 +721,7 @@ const readIfPresent = (file: string): string | null => {
 // --- Reporting ---------------------------------------------------------------
 
 export const collectRequirements = (
-  opts: { includeXcode?: boolean } = {},
+  opts: { includeXcode?: boolean; updateConfig?: UpdateConfig | null } = {},
 ): Requirement[] => {
   const dotnet = checkDotnetSdk();
   const workloadList =
@@ -762,7 +741,7 @@ export const collectRequirements = (
     reqs.push(checkWindowsSigning(), checkWebView2Runtime());
   }
 
-  const updateIssues = inspectUpdateConfiguration();
+  const updateIssues = inspectUpdateConfiguration(opts.updateConfig ?? null);
   if (updateIssues.length > 0) {
     reqs.push(...updateIssues);
   }
@@ -801,7 +780,19 @@ export const runDoctor = async (): Promise<number> => {
   console.log(footer(dim("checking your environment\u2026")));
   console.log();
 
-  const reqs = collectRequirements();
+  const project = tryDetectProject(process.cwd());
+  const updateConfig = project
+    ? (await loadVidraConfig(project.root, {
+        command: "doctor",
+        mode: "development",
+        target: process.platform === "darwin"
+          ? "macos"
+          : process.platform === "win32"
+            ? "windows"
+            : null,
+      })).updates
+    : null;
+  const reqs = collectRequirements({ updateConfig });
   printRequirements(reqs);
   console.log();
 

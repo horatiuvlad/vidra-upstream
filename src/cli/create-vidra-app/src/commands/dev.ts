@@ -12,6 +12,12 @@ import { formatBuildError } from "../exec.js";
 import { signMacAppBundleIfPossible } from "../signing.js";
 import { selectDevServerUrl } from "../dev-port.js";
 import {
+  loadVidraConfig,
+  writeBridgePolicy,
+  writeFrontendAccessFingerprint,
+  VIDRA_CONFIG_FILE,
+} from "../config.js";
+import {
   ensureMauiWorkload,
   looksLikeMissingWorkload,
   looksLikeMissingXcode,
@@ -100,6 +106,13 @@ const startSession = async (
   ensureTargetMatchesHostOs(target.name);
 
   const project = detectProject(process.cwd());
+  const loadedConfig = await loadVidraConfig(project.root, {
+    command: opts.vite ? "dev" : "run",
+    mode: "development",
+    target: target.name,
+  });
+  writeBridgePolicy(project.hostDir, loadedConfig);
+  writeFrontendAccessFingerprint(project.uiDir, loadedConfig.accessFingerprint);
 
   // Fail fast (before starting Vite) if the MAUI workload the host build needs
   // isn't installed; offers to install it when the session is interactive.
@@ -115,7 +128,52 @@ const startSession = async (
     vite: opts.vite,
     hotReload,
   });
-  await session.run();
+  let reloadTimer: NodeJS.Timeout | undefined;
+  const configWatcher = fs.watch(project.root, (_event, filename) => {
+    if (filename && path.basename(filename.toString()) !== VIDRA_CONFIG_FILE) {
+      return;
+    }
+
+    clearTimeout(reloadTimer);
+    reloadTimer = setTimeout(async () => {
+      try {
+        const next = await loadVidraConfig(project.root, {
+          command: opts.vite ? "dev" : "run",
+          mode: "development",
+          target: target.name,
+        });
+        const policyWrite = writeBridgePolicy(project.hostDir, next);
+        const frontendWrite = writeFrontendAccessFingerprint(
+          project.uiDir,
+          next.accessFingerprint,
+        );
+        if (policyWrite.changed) {
+          console.log(row({
+            glyph: "done",
+            detail: dim(
+              "vidra.config.ts updated — dotnet watch is rebuilding and relaunching the host",
+            ),
+          }));
+        } else if (frontendWrite.changed) {
+            console.log(row({
+              glyph: "done",
+              detail: dim("vidra.config.ts updated — refreshing frontend access fingerprint"),
+            }));
+        }
+      } catch (error) {
+        console.error(row({
+          glyph: "error",
+          detail: dim(error instanceof Error ? error.message : String(error)),
+        }));
+      }
+    }, 100);
+  });
+  try {
+    await session.run();
+  } finally {
+    clearTimeout(reloadTimer);
+    configWatcher.close();
+  }
 };
 
 // --- dotnet watch helpers (exported for unit tests) ---------------------------

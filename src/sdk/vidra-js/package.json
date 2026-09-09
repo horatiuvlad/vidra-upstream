@@ -6,6 +6,20 @@
   "main": "dist/index.js",
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./config": {
+      "types": "./dist/config.d.ts",
+      "import": "./dist/config.js"
+    },
+    "./config/tokens": {
+      "types": "./dist/config-tokens.d.ts",
+      "import": "./dist/config-tokens.js"
+    }
+  },
   "files": [
     "dist"
   ],

@@ -99,7 +99,7 @@
     <PackageReference Include="Vidra.Hosting.Maui" Version="{{vidraVersion}}" />
     <!--
       Whole-app updates, via Velopack. Referenced from the first scaffold and
-      inert until package.json names a native feed: ~280 KB of managed code
+      inert until vidra.config.ts names a native feed: ~280 KB of managed code
       against a self-contained .NET + MAUI app, which is the price of never
       having to retrofit an entry point, a package reference and a builder call
       into an app that has already shipped.

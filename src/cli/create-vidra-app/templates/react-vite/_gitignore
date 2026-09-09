@@ -1,6 +1,8 @@
 # Build artifacts
 dist/
 src/*/Resources/Raw/wwwroot/
+src/*/Resources/Raw/vidra-bridge-policy.json
+ui/src/generated/vidra-access-policy.ts
 *.tsbuildinfo
 
 # .NET

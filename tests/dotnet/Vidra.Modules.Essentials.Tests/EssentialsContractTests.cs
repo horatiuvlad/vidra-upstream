@@ -101,7 +101,10 @@ public sealed class ConnectivityDispatcherTests
     [Fact]
     public async Task GetStatus_Roundtrips_Through_Dispatcher_As_Enum_Strings()
     {
-        var dispatcher = new BridgeDispatcher();
+        var dispatcher = new BridgeDispatcher(new BridgeAccessPolicy(new BridgePolicyDocument
+        {
+            NativeMethods = [new("connectivity", "getStatus")],
+        }));
         dispatcher.Register(new FakeConnectivityModule(
             new ConnectivityStatus(NetworkAccess.Internet, new[] { ConnectionProfile.Wifi })));
 

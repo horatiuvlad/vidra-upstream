@@ -147,6 +147,7 @@ internal sealed class VidraUpdateService(VidraUpdateOptions options, IServicePro
             // read too early is a valid-looking hash of a partial manifest.
             CoreFingerprint = BridgeContractRegistry.Fingerprint(BridgeManifestScope.Core),
             AppFingerprint = BridgeContractRegistry.Fingerprint(BridgeManifestScope.App),
+            AccessFingerprint = services.GetRequiredService<IBridgeAccessPolicy>().Fingerprint,
             EmbeddedVersion = EmbeddedVersion(),
             Channel = options.Channel ?? Environment.GetEnvironmentVariable(VidraUpdateOptions.ChannelEnvironmentVariable),
             TrustedPublicKeys = [.. options.PublicKeys],
@@ -329,11 +330,14 @@ internal sealed class VidraUpdateService(VidraUpdateOptions options, IServicePro
     /// earlier and the fingerprint is a hash of a partial manifest and looks
     /// perfectly valid.
     /// </summary>
-    private static HostContracts RunningHost()
+    private HostContracts RunningHost()
         => new(
             BridgeContractRegistry.Fingerprint(BridgeManifestScope.Core),
             BridgeContractRegistry.Fingerprint(BridgeManifestScope.App),
-            EmbeddedVersion());
+            EmbeddedVersion())
+        {
+            AccessFingerprint = services.GetRequiredService<IBridgeAccessPolicy>().Fingerprint,
+        };
 
     private static string? EmbeddedVersion()
     {

@@ -79,7 +79,12 @@ public static class UpdateLifecycle
             }
 
             if (!string.Equals(identity.CoreFingerprint, host.CoreFingerprint, StringComparison.OrdinalIgnoreCase)
-                || !string.Equals(identity.AppFingerprint, host.AppFingerprint, StringComparison.OrdinalIgnoreCase))
+                || !string.Equals(identity.AppFingerprint, host.AppFingerprint, StringComparison.OrdinalIgnoreCase)
+                || (host.AccessFingerprint is not null
+                    && !string.Equals(
+                        identity.AccessFingerprint,
+                        host.AccessFingerprint,
+                        StringComparison.OrdinalIgnoreCase)))
             {
                 dropped.Add(sha);
                 return false;

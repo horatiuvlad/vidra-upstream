@@ -80,6 +80,7 @@ var outputs = new Dictionary<string, string>(StringComparer.Ordinal)
 foreach (var (contractName, contract) in manifest.Contracts)
     outputs[$"{contractName}.ts"] = emitter.EmitContract(contractName, contract, sdkImport);
 
+outputs["access.ts"] = emitter.EmitAccessCatalog(manifest, sdkImport);
 outputs["index.ts"] = emitter.EmitBarrel(manifest, sdkImport, scope);
 
 if (checkOnly)

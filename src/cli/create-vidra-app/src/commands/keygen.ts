@@ -108,17 +108,14 @@ export const keygenCommand = async (argv: string[]): Promise<void> => {
       glyph: "done",
       label: "public key",
       labelWidth: LABEL_WIDTH,
-      detail: `${value(path.relative(process.cwd(), publicKeyPath) || publicKeyPath)} ${dim("— add it to your app's package.json:")}`,
+      detail: `${value(path.relative(process.cwd(), publicKeyPath) || publicKeyPath)} ${dim("— add it to vidra.config.ts:")}`,
     }),
   );
 
   console.log();
   console.log(
     value(
-      JSON.stringify({ vidra: { updates: { publicKeys: [publicKey] } } }, null, 2)
-        .split("\n")
-        .map((line) => `    ${line}`)
-        .join("\n"),
+      `    updates: {\n      publicKeys: [${JSON.stringify(publicKey)}],\n    },`,
     ),
   );
   console.log();

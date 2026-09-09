@@ -41,6 +41,8 @@
   <ItemGroup>
     <Compile Include="..\..\..\src\modules\Vidra.Modules.FileSystem\FileSystemModule.cs"
              Link="Linked\FileSystemModule.cs" />
+    <Compile Include="..\..\..\src\modules\Vidra.Modules.FileSystem\FileSystemAccessPolicy.cs"
+             Link="Linked\FileSystemAccessPolicy.cs" />
   </ItemGroup>
 
   <ItemGroup>

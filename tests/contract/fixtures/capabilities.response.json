@@ -3,6 +3,7 @@
   "success": true,
   "data": {
     "protocolVersion": 2,
+    "accessFingerprint": "3ac090de6154b840ef518755f7cf4e16b5860c26805d60cb878574b086947387",
     "nativeContracts": {
       "echo": {
         "methods": ["ping", "fail"],

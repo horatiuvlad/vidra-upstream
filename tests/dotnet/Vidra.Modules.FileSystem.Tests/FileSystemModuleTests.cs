@@ -27,7 +27,7 @@ public sealed class FileSystemModuleAttributeTests
 public sealed class FileSystemModuleBehaviorTests : IDisposable
 {
     private readonly string _dir;
-    private readonly FileSystemModule _module = new();
+    private readonly FileSystemModule _module;
     private readonly BridgeDispatcher _dispatcher;
 
     public FileSystemModuleBehaviorTests()
@@ -35,7 +35,25 @@ public sealed class FileSystemModuleBehaviorTests : IDisposable
         _dir = Path.Combine(Path.GetTempPath(), "vidra-fs-" + Path.GetRandomFileName());
         Directory.CreateDirectory(_dir);
 
-        _dispatcher = new BridgeDispatcher();
+        var methods = new[]
+        {
+            new BridgeMemberGrant("filesystem", "readText"),
+            new BridgeMemberGrant("filesystem", "writeText"),
+            new BridgeMemberGrant("filesystem", "exists"),
+            new BridgeMemberGrant("filesystem", "delete"),
+            new BridgeMemberGrant("filesystem", "listDirectory"),
+        };
+        var fileSystemGrant = new BridgeFileSystemGrant
+        {
+            Root = "appData",
+            Methods = methods,
+        };
+        var policy = new BridgeAccessPolicy(new BridgePolicyDocument
+        {
+            FileSystem = [fileSystemGrant],
+        });
+        _module = new FileSystemModule([fileSystemGrant], _ => _dir);
+        _dispatcher = new BridgeDispatcher(policy);
         _dispatcher.Register(_module);
     }
 
@@ -133,5 +151,47 @@ public sealed class FileSystemModuleBehaviorTests : IDisposable
         var response = await InvokeAsync("readText", new { path = Path.Combine(_dir, "nope.txt") });
         response.GetProperty("success").GetBoolean().Should().BeFalse();
         response.GetProperty("error").GetProperty("code").GetString().Should().Be("NATIVE_MEMBER_ERROR");
+    }
+
+    [Fact]
+    public async Task ReadText_Outside_Granted_Root_Is_Denied()
+    {
+        var response = await InvokeAsync(
+            "readText",
+            new { path = Path.Combine(_dir, "..", "outside.txt") });
+
+        response.GetProperty("success").GetBoolean().Should().BeFalse();
+        response.GetProperty("error").GetProperty("code").GetString()
+            .Should().Be("FILESYSTEM_PATH_DENIED");
+    }
+
+    [Fact]
+    public async Task Relative_Paths_Are_Denied()
+    {
+        var response = await InvokeAsync("exists", new { path = "relative.txt" });
+
+        response.GetProperty("error").GetProperty("code").GetString()
+            .Should().Be("FILESYSTEM_PATH_DENIED");
+    }
+
+    [Fact]
+    public async Task Symlink_Escapes_Are_Denied()
+    {
+        var outside = Path.Combine(Path.GetTempPath(), "vidra-outside-" + Path.GetRandomFileName());
+        var link = Path.Combine(_dir, "link.txt");
+        await File.WriteAllTextAsync(outside, "secret");
+        try
+        {
+            File.CreateSymbolicLink(link, outside);
+            var response = await InvokeAsync("readText", new { path = link });
+
+            response.GetProperty("error").GetProperty("code").GetString()
+                .Should().Be("FILESYSTEM_PATH_DENIED");
+        }
+        finally
+        {
+            File.Delete(link);
+            File.Delete(outside);
+        }
     }
 }

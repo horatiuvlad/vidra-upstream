@@ -11,9 +11,9 @@ public static class VidraNativeUpdatesExtensions
     /// </summary>
     /// <remarks>
     /// <para>
-    /// With no arguments the app is configured by the <c>native</c> block of the
-    /// <c>vidra.updates</c> section in its own <c>package.json</c>, which
-    /// <c>vidra build</c> stamps into the bundle: no feed URL there means
+    /// With no arguments the app is configured by the <c>updates</c> block in
+    /// <c>vidra.config.ts</c>, which <c>vidra build</c> stamps into the bundle:
+    /// no whole-app feed URL there means
     /// nothing is ever checked.
     /// </para>
     /// <para>

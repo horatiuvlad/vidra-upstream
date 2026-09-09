@@ -4,6 +4,7 @@ public class BundleSelectionTests
 {
     private const string Core = "a4d6e4856749f06fd3c84be9bb5a468c5219e71797777a977a2d0772dc6214db";
     private const string App = "d3044812d17c42049962d730fced04a6ecd711e287cdd0da7b218b327ee6cd56";
+    private const string Access = "access-policy";
 
     [Fact]
     public void Picks_the_newest_compatible_bundle()
@@ -43,6 +44,19 @@ public class BundleSelectionTests
             Entry("1.9.0"));
 
         BundleSelection.Choose(manifest, Core, App, "1.0.0")!.Entry.Version.Should().Be("1.9.0");
+    }
+
+    [Fact]
+    public void Ignores_a_bundle_built_for_a_different_access_policy()
+    {
+        var manifest = Manifest(Entry("2.0.0", access: "other-policy"));
+
+        BundleSelection.Choose(
+            manifest,
+            Core,
+            App,
+            "1.0.0",
+            hostAccessFingerprint: Access).Should().BeNull();
     }
 
     [Fact]
@@ -122,7 +136,8 @@ public class BundleSelectionTests
         string version,
         string? core = null,
         string? app = null,
-        string? channel = null)
+        string? channel = null,
+        string? access = null)
         => new()
         {
             Version = version,
@@ -130,6 +145,7 @@ public class BundleSelectionTests
             Sha256 = new string('a', 64),
             CoreFingerprint = core ?? Core,
             AppFingerprint = app ?? App,
+            AccessFingerprint = access ?? Access,
             Channel = channel,
         };
 }
