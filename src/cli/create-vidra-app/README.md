@@ -1,53 +1,44 @@
 # create-vidra-app
 
-Scaffold a new [Vidra](https://vidra.build) application — a
-**React UI + .NET MAUI native host**, shipped from a single codebase.
+Scaffold a [Vidra](https://vidra.build) desktop app with a web UI and a
+C#/.NET native host.
 
-> **Alpha.** APIs and templates may change between 0.x releases.
+> **Alpha:** APIs and templates may change between 0.x releases.
 
-## Usage
+## Create an app
 
 ```bash
 npm create vidra-app@latest
 # or
 npx create-vidra-app my-app
-```
 
-You'll be prompted for a project name and an app ID (reverse-domain). Then:
-
-```bash
 cd my-app
-npm run dev   # starts Vite + the native host together
+npm run dev
 ```
 
-Scaffolded apps get the `vidra` CLI as a local dev dependency — there's no
-global `vidra` to install. Run it from inside your project via the npm scripts
-or `npx`:
+The generated project includes the `vidra` CLI as a local dependency. Use the
+provided npm scripts or run it through `npx`; no global install is required.
 
-```bash
-npm run dev                     # start Vite + native host
-npm run build                   # build + package for distribution
-npm run doctor                  # check your .NET / MAUI / Xcode setup
-npx vidra dev --target windows  # run a specific desktop target
-npx vidra build --target macos  # build + package a macOS .dmg
-```
-
-## Prerequisites
+## Requirements
 
 - .NET 10 SDK
-- The .NET MAUI workload: `dotnet workload install maui`
-- Node.js 18+
-- macOS targets require Xcode; Windows targets must be built on Windows
+- .NET MAUI workload: `dotnet workload install maui`
+- Node.js 22 or newer
+- Xcode for macOS builds
 
-If the MAUI workload is missing, `create-vidra-app` will detect it after
-scaffolding and offer to install it for you. You can re-check at any time with
-`npm run doctor`. 
+Windows targets must be built on Windows.
 
-## Links
+## Common commands
 
-- Website: [vidra.build](https://vidra.build)
-- GitHub: [rzamfiriu/vidra](https://github.com/rzamfiriu/vidra)
-- npm: [create-vidra-app](https://www.npmjs.com/package/create-vidra-app)
+```bash
+npm run dev
+npm run build
+npm run doctor
+npx vidra --help
+```
+
+See the [getting started guide](https://vidra.build/docs/getting-started/) for
+project structure, development, and build options.
 
 ## License
 
