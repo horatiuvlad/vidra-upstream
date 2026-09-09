@@ -1,7 +1,7 @@
 # Handoff — release-path PRs, the dependency sweep, and an OTA failure worth chasing
 
-**Date:** 2026-08-07, updated 2026-08-10. **Base:** upstream `rzamfiriu/vidra` `main` @
-`e83a27b` (was `a38ec4a` until #20 merged).
+**Date:** 2026-08-07, updated 2026-09-09. **Base:** upstream `rzamfiriu/vidra` `main` @
+`8f8e327` (was `e83a27b` while the four PRs below were open).
 **Where the work lives:** this fork, `horatiuvlad/vidra-fork`.
 
 This branch exists only to carry this file. It is deliberately not on `main` and not
@@ -11,29 +11,41 @@ on any PR branch, so it cannot end up in a diff proposed upstream.
 
 ## 1. What is open, and where
 
-| PR | Branch | Base | State |
-|---|---|---|---|
-| [rzamfiriu/vidra#21](https://github.com/rzamfiriu/vidra/pull/21) | `fix/ota-boot-confirmation` | upstream `main` (`e83a27b`) | promoted 2026-08-10, awaiting review; green on the fork ([31426354886](https://github.com/horatiuvlad/vidra-fork/actions/runs/31426354886)) |
-| [vidra-fork#13](https://github.com/horatiuvlad/vidra-fork/pull/13) | `pr/release-path` | fork `main` (`e83a27b`) | green after the rebase |
-| [vidra-fork#9](https://github.com/horatiuvlad/vidra-fork/pull/9) | `pr/dependency-sweep` | fork `main` (`e83a27b`) | green after the rebase |
-| [vidra-fork#11](https://github.com/horatiuvlad/vidra-fork/pull/11) | `pr/counter-failure-visible` | fork `main` (`e83a27b`) | macOS smoke went red on the rebase run at "Rebuilding a published version skips the pack", `NETSDK1047` on `maccatalyst-x64`; the same publish had passed four times earlier in that job and on the other three branches, so it was rerun |
+**Nothing of ours is open, on the fork or upstream** — verified 2026-09-09. All four
+PRs this file was written to track are merged, and upstream has no open PR from anyone.
 
-**#21 is the only thing of ours open upstream.** The other three are staged on the fork on
-purpose (owner directive, 2026-08-07): they settle here first and get promoted later.
+| Fork PR | Promoted as | Merged upstream as |
+|---|---|---|
+| [vidra-fork#13](https://github.com/horatiuvlad/vidra-fork/pull/13) `pr/release-path` | [rzamfiriu/vidra#22](https://github.com/rzamfiriu/vidra/pull/22) | `4aa36eb` |
+| [vidra-fork#11](https://github.com/horatiuvlad/vidra-fork/pull/11) `pr/counter-failure-visible` | [rzamfiriu/vidra#23](https://github.com/rzamfiriu/vidra/pull/23) | `f4fe92d` |
+| [vidra-fork#9](https://github.com/horatiuvlad/vidra-fork/pull/9) `pr/dependency-sweep` | [rzamfiriu/vidra#24](https://github.com/rzamfiriu/vidra/pull/24) | `932601f` |
+| [vidra-fork#15](https://github.com/horatiuvlad/vidra-fork/pull/15) `fix/catalyst-rid-set` | [rzamfiriu/vidra#25](https://github.com/rzamfiriu/vidra/pull/25) | `21463e3` |
+| [vidra-fork#14](https://github.com/horatiuvlad/vidra-fork/pull/14) `fix/ota-boot-confirmation` | [rzamfiriu/vidra#21](https://github.com/rzamfiriu/vidra/pull/21) | `efb0f1b` |
+| [vidra-fork#12](https://github.com/horatiuvlad/vidra-fork/pull/12) `fix/ota-smoke-server-timeout` | [rzamfiriu/vidra#20](https://github.com/rzamfiriu/vidra/pull/20) | `e83a27b` |
 
-Merged upstream, done:
+Owner merged all four of #22–#25 on 2026-09-09, then pushed two commits straight to
+`main` (`f1de49e` docs, `8f8e327` typed least-privilege bridge access) with a merge
+between them (`439aebc`). **That merge does not revert any of ours** — checked at
+`8f8e327`: the Catalyst `RuntimeIdentifiers` line is in both csproj files, the host
+still references `Logging.Debug` 10.0.10, both packages say `"node": ">=22"` with
+`@types/node ^22.20.0`, `MainPage.cs` logs through `Console`, and `tag-release.sh`
+reads the peeled `^{}` entry.
 
-- [rzamfiriu/vidra#20](https://github.com/rzamfiriu/vidra/pull/20)
-  (`fix/ota-smoke-server-timeout`) — approved by `rzamfiriu` and squash-merged
-  2026-08-10 as `e83a27b`. Fork `main` is fast-forwarded to it and the branch is
-  deleted on both sides.
+That same push also moved app configuration from `package.json` to a new
+`vidra.config.ts`, so any older branch of ours is written against a surface that no
+longer exists.
+
+**Fork housekeeping, 2026-09-09.** Fork `main` is fast-forwarded to upstream `8f8e327`.
+The five branches those PRs and the RID probe left behind are deleted on both sides,
+each preserved as `archive/<branch>`:
+`archive/pr/release-path` (`3e27ec8`), `archive/pr/counter-failure-visible` (`455e499`),
+`archive/pr/dependency-sweep` (`b303cfb`), `archive/fix/catalyst-rid-set` (`7ae1e0f`),
+`archive/probe/macos-rid` (`eee206a`). The fork now carries `main` and this branch only.
 
 Closed and superseded, do not reopen:
 
 - upstream #16/#17/#18/#19 — withdrawn, moved to the fork as #8/#9/#10/#11.
 - fork #8 and #10 — folded into #13.
-- fork #12 — promoted upstream as #20, which is now merged.
-- fork #14 — promoted upstream as #21, same branch and same commit (`3f7dc82`).
 
 ## 2. What changed versus the original four PRs
 
@@ -75,6 +87,11 @@ claims in that document turned out to be wrong. Both are covered below.
 
   It replaces the `maxim-lobanov/setup-xcode@v1` step pinned to `26.3` and removes
   `--skip-manifest-update`. Do it in the 0.5.0 release PR, where a real pack run proves it.
+
+  **Still open at `8f8e327`** (re-read 2026-09-09): `release-nuget.yml` lines 66-72 pin
+  Xcode `26.3` and pass `--skip-manifest-update`, while `ci.yml` has dropped both and says
+  at length why. With #22 merged, this is the last thing between here and a 0.5.0 release,
+  and it is the only item this file still carries forward.
 
 ### Corrections to the original work
 
@@ -150,9 +167,9 @@ matters.
 
 Ordered by how much they matter.
 
-1. **Issue [#13](https://github.com/rzamfiriu/vidra/issues/13) reproduced in CI with a
-   full log.** See §5. This is a real defect in shipped 0.4.0 and is more valuable
-   than anything in the three open PRs.
+1. ~~**Issue [#13](https://github.com/rzamfiriu/vidra/issues/13) reproduced in CI with a
+   full log.**~~ Fixed by #21 (`efb0f1b`) and the issue closed 2026-09-05. §5 below is
+   kept as the evidence trail. Issues **#12** and **#14** are still open.
 2. **`merge-nupkgs.py` silently merges a package into itself** when it appears in only
    one OS artifact. Nothing checks the merged set against an expected list of ids, or
    that each package carries both platforms' `lib/` folders. You can publish a
