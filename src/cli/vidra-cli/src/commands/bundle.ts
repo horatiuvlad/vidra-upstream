@@ -17,7 +17,7 @@ import {
   row,
   STEP_LABEL_WIDTH as LABEL_WIDTH,
   value,
-} from "../theme.js";
+} from "@vidra-dev/cli-shared/theme";
 
 /**
  * The web-bundle half of `vidra build`, reached as `vidra build --web`.
