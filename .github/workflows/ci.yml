@@ -149,6 +149,14 @@ jobs:
         working-directory: src/sdk/vidra-js
         run: npm test
 
+      # The scaffolded app's vidra.config.ts imports @vidra-dev/sdk/config, and
+      # the CLI loads that file for real in the --plan step below. The package
+      # only exports dist/, so an unbuilt SDK surfaces as "Package subpath
+      # './config' is not defined by exports" rather than as a missing file.
+      - name: Build SDK
+        working-directory: src/sdk/vidra-js
+        run: npm run build
+
       # ---- TypeScript CLI ----
       - name: Install CLI dependencies
         working-directory: src/cli/create-vidra-app
