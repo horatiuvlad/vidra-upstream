@@ -13,7 +13,7 @@ import {
 } from "./utils.js";
 import { exec, tryExecAsync } from "./exec.js";
 import { scaffoldDir, type Replacements } from "./scaffold.js";
-import { ensureMauiWorkload } from "./doctor.js";
+import { ensureMauiWorkload } from "./dotnet-toolchain.js";
 import { dim, footer, kv, lime, row, value, wordmark } from "./theme.js";
 
 /** A dim "label   body" note line (body may contain its own colors). */

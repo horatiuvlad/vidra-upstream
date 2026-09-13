@@ -55,8 +55,8 @@ import {
   verifyWindowsSignature,
 } from "../windows-signing.js";
 import { windowsTarget } from "../targets/windows.js";
+import { ensureMauiWorkload } from "../dotnet-toolchain.js";
 import {
-  ensureMauiWorkload,
   looksLikeMissingWorkload,
   looksLikeMissingXcode,
   printWorkloadHint,

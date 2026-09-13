@@ -17,8 +17,8 @@ import {
   writeFrontendAccessFingerprint,
   VIDRA_CONFIG_FILE,
 } from "../config.js";
+import { ensureMauiWorkload } from "../dotnet-toolchain.js";
 import {
-  ensureMauiWorkload,
   looksLikeMissingWorkload,
   looksLikeMissingXcode,
   looksLikeXcodeTooOld,

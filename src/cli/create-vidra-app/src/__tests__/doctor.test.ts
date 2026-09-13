@@ -1,8 +1,6 @@
 import { describe, it, expect } from "vitest";
+import { hasNet10Sdk, newestNet10Sdk, outputMentionsMaui } from "../dotnet-toolchain.js";
 import {
-  hasNet10Sdk,
-  newestNet10Sdk,
-  outputMentionsMaui,
   looksLikeMissingWorkload,
   looksLikeMissingXcode,
   looksLikeXcodeTooOld,
