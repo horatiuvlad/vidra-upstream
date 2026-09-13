@@ -391,7 +391,13 @@ export const buildCommand = async (argv: string[]): Promise<void> => {
   // the app build already produced rather than running Vite twice.
   if (mode === "all" && feeds.web && layout.web) {
     console.log();
-    await stepWebBundle(project, layout.web, feeds, typeof args["sign"] === "string" ? args["sign"] : undefined);
+    await stepWebBundle(
+      project,
+      layout.web,
+      feeds,
+      loadedConfig,
+      typeof args["sign"] === "string" ? args["sign"] : undefined,
+    );
   }
 
   console.log();
