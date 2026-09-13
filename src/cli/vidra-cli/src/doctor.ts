@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import { dim, fixLine, footer, lime, row, value } from "./theme.js";
-import type { GlyphName } from "./theme.js";
+import { dim, fixLine, footer, lime, row, value } from "@vidra-dev/cli-shared/theme";
+import type { GlyphName } from "@vidra-dev/cli-shared/theme";
 import {
   listCodeSigningIdentities,
   listExpiredCodeSigningIdentities,
@@ -17,14 +17,14 @@ import {
 import { loadVidraConfig } from "./config.js";
 import { FeedUriError } from "./feed-uri.js";
 import { tryDetectProject } from "./project.js";
-import { run, type RunResult } from "./exec.js";
+import { run, type RunResult } from "@vidra-dev/cli-shared/exec";
 import {
   checkDotnetSdk,
   DOTNET,
   outputMentionsMaui,
   type Requirement,
   type RequirementStatus,
-} from "./dotnet-toolchain.js";
+} from "@vidra-dev/cli-shared/dotnet-toolchain";
 
 // --- Text scanning helpers ---------------------------------------------------
 
